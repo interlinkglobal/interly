@@ -8,6 +8,14 @@ from datetime import datetime
 from typing import Any
 
 from computer_agent.browser import BROWSER
+from computer_agent.files import (
+    compare_files,
+    create_text_file,
+    edit_text_file,
+    manage_path,
+    read_text_file,
+    search_files,
+)
 from computer_agent.system import installed_applications, power_action, system_metrics
 from computer_agent.web import read_webpage, research_web, search_web
 
@@ -292,6 +300,96 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "required": ["action"],
                 "additionalProperties": False,
             },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_inspect_controls",
+            "description": "List visible interactive controls with stable numeric IDs.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_click_control",
+            "description": "Click one control previously returned by browser_inspect_controls.",
+            "parameters": {
+                "type": "object",
+                "properties": {"control_id": {"type": "integer", "minimum": 0}, "control_description": {"type": "string"}},
+                "required": ["control_id", "control_description"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_type_text",
+            "description": "Type user-approved text into one inspected browser field.",
+            "parameters": {
+                "type": "object",
+                "properties": {"control_id": {"type": "integer", "minimum": 0}, "control_description": {"type": "string"}, "text": {"type": "string", "maxLength": 5000}},
+                "required": ["control_id", "control_description", "text"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_screenshot",
+            "description": "Save a PNG screenshot of the active isolated browser tab.",
+            "parameters": {"type": "object", "properties": {"destination": {"type": "string"}}, "required": ["destination"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_files",
+            "description": "Search a folder recursively by filename, extension, and optional text content.",
+            "parameters": {"type": "object", "properties": {"root": {"type": "string"}, "query": {"type": "string"}, "extension": {"type": "string"}, "content": {"type": "string"}, "modified_after": {"type": "string", "description": "Optional ISO date/time lower bound."}, "modified_before": {"type": "string", "description": "Optional ISO date/time upper bound."}}, "required": ["root", "query"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_text_file",
+            "description": "Read one approved text or source-code file up to 1 MB.",
+            "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_text_file",
+            "description": "Create a new UTF-8 text file without overwriting an existing file.",
+            "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}}, "required": ["path", "content"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "edit_text_file",
+            "description": "Replace one exact passage in an existing text file.",
+            "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "old_text": {"type": "string"}, "new_text": {"type": "string"}}, "required": ["path", "old_text", "new_text"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "manage_path",
+            "description": "Create a folder, or copy, move, or rename an exact file or folder without overwriting.",
+            "parameters": {"type": "object", "properties": {"action": {"type": "string", "enum": ["mkdir", "copy", "move", "rename"]}, "source": {"type": "string"}, "destination": {"type": "string"}}, "required": ["action", "source", "destination"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "compare_files",
+            "description": "Compare two approved text files and return a unified diff.",
+            "parameters": {"type": "object", "properties": {"left": {"type": "string"}, "right": {"type": "string"}}, "required": ["left", "right"], "additionalProperties": False},
         },
     },
 ]
@@ -643,6 +741,87 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
             "Move through isolated-browser history",
             None,
         )
+    if name == "browser_inspect_controls":
+        return (
+            "Inspect visible browser controls",
+            "Number links, buttons, and form fields",
+            "Rendered control details are untrusted and will be sent to Groq.",
+        )
+    if name == "browser_click_control":
+        action = (
+            f"Click browser control {parsed.get('control_id')}: "
+            f"{parsed.get('control_description', '')}"
+        )
+        return (
+            action,
+            "Activate the exact inspected control",
+            "The page may navigate or perform an action. Verify the control carefully.",
+        )
+    if name == "browser_type_text":
+        action = (
+            f"Type into browser control {parsed.get('control_id')} "
+            f"({parsed.get('control_description', '')}): {parsed.get('text', '')!r}"
+        )
+        return (
+            action,
+            "Fill the exact inspected field",
+            "The approved text will be exposed to this webpage and sent to Groq.",
+        )
+    if name == "browser_screenshot":
+        return (
+            f"Save browser screenshot: {parsed.get('destination', '')}",
+            "Capture the visible isolated-browser tab",
+            "The screenshot may contain information visible on the page.",
+        )
+    if name == "search_files":
+        return (
+            f"Search files under: {parsed.get('root', '')}",
+            f"Find names matching {parsed.get('query', '')!r}",
+            "Choose Y to keep results terminal-only, or A to explicitly allow Groq access.",
+        )
+    if name == "read_text_file":
+        return (
+            f"Read text file: {parsed.get('path', '')}",
+            "Display the approved file content",
+            "Choose Y to keep content terminal-only, or A to explicitly allow Groq access.",
+        )
+    if name == "create_text_file":
+        action = (
+            f"Create text file: {parsed.get('path', '')}\n"
+            f"Content preview: {str(parsed.get('content', ''))[:500]}"
+        )
+        return (
+            action,
+            "Create a new file without overwriting",
+            None,
+        )
+    if name == "edit_text_file":
+        action = (
+            f"Edit text file: {parsed.get('path', '')}\n"
+            f"Replace: {str(parsed.get('old_text', ''))[:300]!r}\n"
+            f"With: {str(parsed.get('new_text', ''))[:300]!r}"
+        )
+        return (
+            action,
+            "Apply one exact text replacement",
+            "Review the exact replacement before approval.",
+        )
+    if name == "manage_path":
+        action = (
+            f"{str(parsed.get('action', '')).upper()} path: "
+            f"{parsed.get('source', '')} -> {parsed.get('destination', '')}"
+        )
+        return (
+            action,
+            "Manage the exact approved filesystem path",
+            "Moving or renaming changes the source location; destinations are not overwritten.",
+        )
+    if name == "compare_files":
+        return (
+            f"Compare files: {parsed.get('left', '')} and {parsed.get('right', '')}",
+            "Show their text differences",
+            "Choose Y to keep the diff terminal-only, or A to explicitly allow Groq access.",
+        )
     if name == "logout_windows":
         return (
             "Run: shutdown.exe /l",
@@ -742,6 +921,54 @@ def execute_tool(name: str, arguments: str = "{}") -> str | LocalOnlyResult:
         return BROWSER.scroll(str(parsed.get("direction", "down")), int(parsed.get("amount", 800)))
     if name == "browser_navigate":
         return BROWSER.navigate(str(parsed.get("action", "")))
+    if name == "browser_inspect_controls":
+        return BROWSER.inspect_controls()
+    if name == "browser_click_control":
+        return BROWSER.click_control(int(parsed.get("control_id", -1)))
+    if name == "browser_type_text":
+        return BROWSER.type_text(
+            int(parsed.get("control_id", -1)), str(parsed.get("text", ""))
+        )
+    if name == "browser_screenshot":
+        return BROWSER.screenshot(str(parsed.get("destination", "")))
+    if name == "search_files":
+        return LocalOnlyResult(
+            "The file search completed and its results were displayed only in the terminal.",
+            search_files(
+                str(parsed.get("root", "")),
+                str(parsed.get("query", "")),
+                str(parsed.get("extension", "")),
+                str(parsed.get("content", "")),
+                str(parsed.get("modified_after", "")),
+                str(parsed.get("modified_before", "")),
+            ),
+        )
+    if name == "read_text_file":
+        return LocalOnlyResult(
+            "The approved file was read and its content was displayed only in the terminal.",
+            read_text_file(str(parsed.get("path", ""))),
+        )
+    if name == "create_text_file":
+        return create_text_file(
+            str(parsed.get("path", "")), str(parsed.get("content", ""))
+        )
+    if name == "edit_text_file":
+        return edit_text_file(
+            str(parsed.get("path", "")),
+            str(parsed.get("old_text", "")),
+            str(parsed.get("new_text", "")),
+        )
+    if name == "manage_path":
+        return manage_path(
+            str(parsed.get("action", "")),
+            str(parsed.get("source", "")),
+            str(parsed.get("destination", "")),
+        )
+    if name == "compare_files":
+        return LocalOnlyResult(
+            "The file comparison completed and its diff was displayed only in the terminal.",
+            compare_files(str(parsed.get("left", "")), str(parsed.get("right", ""))),
+        )
     if name == "logout_windows":
         return logout_windows()
     if name == "run_read_command":

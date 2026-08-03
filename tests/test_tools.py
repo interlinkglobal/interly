@@ -141,3 +141,23 @@ def test_browser_read_tool_requires_explicit_valid_json_argument() -> None:
     )
 
     assert schema["function"]["parameters"]["required"] == ["mode"]
+
+
+def test_browser_click_requires_control_preview() -> None:
+    schema = next(
+        tool for tool in TOOL_SCHEMAS if tool["function"]["name"] == "browser_click_control"
+    )
+
+    assert schema["function"]["parameters"]["required"] == [
+        "control_id",
+        "control_description",
+    ]
+
+
+@patch("computer_agent.tools.read_text_file", return_value="private file data")
+def test_file_read_is_local_only_by_default(_read: object) -> None:
+    result = execute_tool("read_text_file", '{"path":"C:/private.txt"}')
+
+    assert isinstance(result, LocalOnlyResult)
+    assert result.terminal_output == "private file data"
+    assert "private file data" not in result.model_status

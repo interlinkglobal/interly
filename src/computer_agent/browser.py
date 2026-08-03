@@ -10,6 +10,7 @@ from computer_agent.config import config_file
 from computer_agent.web import validate_public_url
 
 MAX_BROWSER_TEXT = 25_000
+MAX_CONTROLS = 100
 
 
 class IsolatedBrowser:
@@ -54,6 +55,59 @@ class IsolatedBrowser:
         if len(text) > MAX_BROWSER_TEXT:
             text = text[:MAX_BROWSER_TEXT] + "\n[Browser text truncated by Interly]"
         return f"URL: {page.url}\nTitle: {page.title()}\n\n{text}"
+
+    def inspect_controls(self) -> str:
+        """Return numbered, visible interactive controls without activating them."""
+        page = self.current_page()
+        controls = page.locator("a, button, input, textarea, select, [role='button']")
+        results: list[dict[str, Any]] = []
+        for index in range(min(controls.count(), MAX_CONTROLS)):
+            control = controls.nth(index)
+            if not control.is_visible():
+                continue
+            results.append(
+                {
+                    "control_id": index,
+                    "tag": control.evaluate("element => element.tagName.toLowerCase()"),
+                    "text": (control.inner_text(timeout=2_000) or "").strip()[:200],
+                    "label": control.get_attribute("aria-label"),
+                    "name": control.get_attribute("name"),
+                    "type": control.get_attribute("type"),
+                    "href": control.get_attribute("href"),
+                    "placeholder": control.get_attribute("placeholder"),
+                }
+            )
+        return json.dumps(results, indent=2)
+
+    def click_control(self, control_id: int) -> str:
+        page = self.current_page()
+        controls = page.locator("a, button, input, textarea, select, [role='button']")
+        if control_id < 0 or control_id >= controls.count():
+            return f"No browser control exists at index {control_id}."
+        control = controls.nth(control_id)
+        if not control.is_visible():
+            return f"Browser control {control_id} is no longer visible; nothing was clicked."
+        control.click(timeout=15_000)
+        return f"Clicked browser control {control_id}. Current URL: {page.url}"
+
+    def type_text(self, control_id: int, text: str) -> str:
+        page = self.current_page()
+        controls = page.locator("a, button, input, textarea, select, [role='button']")
+        if control_id < 0 or control_id >= controls.count():
+            return f"No browser control exists at index {control_id}."
+        control = controls.nth(control_id)
+        if not control.is_visible():
+            return f"Browser control {control_id} is no longer visible; nothing was typed."
+        control.fill(text, timeout=15_000)
+        return f"Typed approved text into browser control {control_id}."
+
+    def screenshot(self, destination: str) -> str:
+        path = Path(destination).expanduser().resolve()
+        if path.suffix.casefold() != ".png":
+            return "Browser screenshots must use a .png destination."
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.current_page().screenshot(path=str(path), full_page=False)
+        return f"Saved browser screenshot to {path}"
 
     def list_tabs(self) -> str:
         context = self.ensure_started()

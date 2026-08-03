@@ -25,6 +25,9 @@ SENSITIVE_LOCAL_TOOLS = {
     "read_installed_applications",
     "read_system_metrics",
     "run_read_command",
+    "search_files",
+    "read_text_file",
+    "compare_files",
 }
 PER_MESSAGE_TOOL_LIMITS = {
     "search_web": 2,

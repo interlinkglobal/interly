@@ -75,19 +75,19 @@ items remain future work. Safety and reliability work should precede higher-risk
 53. [✅] Read JavaScript-rendered page content.
 54. [✅] List, open, switch, and close browser tabs.
 55. [✅] Scroll pages and navigate backward or forward.
-56. [ ] Inspect links, buttons, forms, and accessible page controls.
-57. [ ] Click a selected control after showing an exact preview.
-58. [ ] Type approved text into a selected field.
-59. [ ] Take browser screenshots for visual verification.
-60. [ ] Fall back to the isolated browser only when direct HTTP fails.
+56. [✅] Inspect links, buttons, forms, and accessible page controls.
+57. [✅] Click a selected control after showing an exact preview.
+58. [✅] Type approved text into a selected field.
+59. [✅] Take browser screenshots for visual verification.
+60. [✅] Fall back to the isolated browser only when direct HTTP fails.
 
 ## 7. Files, documents, and downloads
 
-61. [ ] Search for files by name, type, date, or content.
-62. [ ] Read approved text and source-code files.
-63. [ ] Preview and create new text files.
-64. [ ] Preview and apply edits to existing files.
-65. [ ] Create, copy, move, and rename files or folders.
+61. [✅] Search for files by name, type, date, or content.
+62. [✅] Read approved text and source-code files.
+63. [✅] Preview and create new text files.
+64. [✅] Preview and apply edits to existing files.
+65. [✅] Create, copy, move, and rename files or folders.
 66. [ ] Send deleted items to the Windows Recycle Bin.
 67. [ ] Summarize PDF, Word, spreadsheet, and presentation files.
 68. [ ] Compare two files and explain their differences.

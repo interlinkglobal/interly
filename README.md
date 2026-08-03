@@ -50,8 +50,11 @@ pipx upgrade interly
 - Guarded lock, sleep, restart, and shutdown actions
 - CPU, memory, disk, network, GPU, temperature, and battery reporting where Windows exposes it
 - Installed-application reporting with registry-provided size estimates
-- Isolated Playwright browser fallback for rendered pages, tabs, scrolling, and navigation
+- Isolated Playwright browser fallback with inspected controls, approved clicking and typing,
+  screenshots, tabs, scrolling, and navigation
 - Automatic isolated-browser cleanup after every browser-assisted request
+- Guarded file search, bounded text reads, exact text edits, comparison, creation, copying,
+  moving, renaming, and folder creation
 - Blocking of private/local web addresses, oversized pages, unsupported downloads, invented
   application IDs, and critical Windows process termination
 
@@ -86,8 +89,8 @@ Interly is alpha software. Model responses can be wrong, and read-only system ou
 contain private information. Review every proposed action. Forced process termination can lose
 unsaved work. Web searches and selected page text are sent to external services and Groq.
 
-Browser clicking and typing, personal-browser access, file modification, downloads, uploads,
-logins, purchases, and messaging are not implemented. The emergency stop prevents additional
+Personal-browser access, file deletion, downloads, document parsing, uploads, logins, purchases,
+and messaging are not implemented. The emergency stop prevents additional
 actions, but an operating-system call that has already completed cannot be reversed.
 
 ## Development
