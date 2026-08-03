@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from computer_agent.tools import (
+    TOOL_SCHEMAS,
     LocalOnlyResult,
     close_or_kill_process,
     describe_tool,
@@ -132,3 +133,11 @@ def test_read_command_execution_returns_local_only_result(_read: object) -> None
     assert isinstance(result, LocalOnlyResult)
     assert result.terminal_output == "private output"
     assert "private output" not in result.model_status
+
+
+def test_browser_read_tool_requires_explicit_valid_json_argument() -> None:
+    schema = next(
+        tool for tool in TOOL_SCHEMAS if tool["function"]["name"] == "browser_read_page"
+    )
+
+    assert schema["function"]["parameters"]["required"] == ["mode"]

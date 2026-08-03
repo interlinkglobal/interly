@@ -5,6 +5,7 @@ from typing import Any
 
 from playwright.sync_api import Error as PlaywrightError
 
+from computer_agent.browser import BROWSER
 from computer_agent.emergency import EmergencyStop
 from computer_agent.models import AuthenticationModelError, ChatModel, ModelError
 from computer_agent.tools import LocalOnlyResult, describe_tool, execute_tool
@@ -79,6 +80,7 @@ def run_chat(
         messages.append({"role": "user", "content": user_text})
         tool_counts: dict[str, int] = {}
         model_rounds = 0
+        browser_used = False
 
         while True:
             if emergency_stop and emergency_stop.requested():
@@ -106,6 +108,8 @@ def run_chat(
 
             for request in turn.tool_requests:
                 share_sensitive_output = False
+                if request.name.startswith("browser_"):
+                    browser_used = True
                 tool_counts[request.name] = tool_counts.get(request.name, 0) + 1
                 limit = PER_MESSAGE_TOOL_LIMITS.get(request.name)
                 if limit is not None and tool_counts[request.name] > limit:
@@ -181,5 +185,12 @@ def run_chat(
                         "content": model_result,
                     }
                 )
+
+        if browser_used:
+            try:
+                BROWSER.close()
+                write_output("Isolated browser closed.")
+            except (OSError, RuntimeError, PlaywrightError) as error:
+                write_output(f"Warning: isolated browser cleanup failed: {error}")
 
     return messages

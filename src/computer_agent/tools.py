@@ -235,7 +235,18 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "function": {
             "name": "browser_read_page",
             "description": "Read rendered text from the active isolated-browser tab.",
-            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mode": {
+                        "type": "string",
+                        "enum": ["visible_text"],
+                        "description": "Use visible_text to read the rendered page body.",
+                    }
+                },
+                "required": ["mode"],
+                "additionalProperties": False,
+            },
         },
     },
     {

@@ -51,6 +51,7 @@ pipx upgrade interly
 - CPU, memory, disk, network, GPU, temperature, and battery reporting where Windows exposes it
 - Installed-application reporting with registry-provided size estimates
 - Isolated Playwright browser fallback for rendered pages, tabs, scrolling, and navigation
+- Automatic isolated-browser cleanup after every browser-assisted request
 - Blocking of private/local web addresses, oversized pages, unsupported downloads, invented
   application IDs, and critical Windows process termination
 

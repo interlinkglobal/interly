@@ -226,3 +226,37 @@ def test_sensitive_a_approval_explicitly_shares_output_with_model(_execute: obje
     )
 
     assert "AUTHORIZED-SYSTEM-DATA" in str(history)
+
+
+@patch("computer_agent.chat.BROWSER.close")
+@patch("computer_agent.chat.execute_tool", return_value="Browser opened")
+def test_isolated_browser_closes_after_browser_assisted_request(
+    _execute: object, close_browser: object
+) -> None:
+    class BrowserModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def reply(self, _messages: list[dict[str, object]]) -> ModelTurn:
+            self.calls += 1
+            if self.calls == 1:
+                request = ToolRequest(
+                    id="browser",
+                    name="browser_open_url",
+                    arguments='{"url":"https://example.com"}',
+                )
+                return ModelTurn(
+                    content=None,
+                    tool_requests=[request],
+                    assistant_message={"role": "assistant", "content": None},
+                )
+            return ModelTurn(
+                content="I read the page.",
+                tool_requests=[],
+                assistant_message={"role": "assistant", "content": "I read the page."},
+            )
+
+    answers = iter(["Open the page", "y", "exit"])
+    run_chat(BrowserModel(), lambda _prompt: next(answers), lambda _text: None)
+
+    close_browser.assert_called_once_with()
