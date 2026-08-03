@@ -1,6 +1,6 @@
 [project]
 name = "interly"
-version = "0.1.0"
+version = "0.2.0"
 description = "A permission-aware Windows computer agent powered by Groq"
 readme = "README.md"
 license = "MIT"
@@ -19,6 +19,9 @@ classifiers = [
 dependencies = [
     "beautifulsoup4==4.15.0",
     "groq==1.6.0",
+    "playwright==1.62.0",
+    "psutil==7.2.2",
+    "pynput==1.8.2",
     "pydantic-settings==2.14.2",
     "python-dotenv==1.2.2",
 ]

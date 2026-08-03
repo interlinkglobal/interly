@@ -126,3 +126,45 @@ def read_webpage(url: str) -> str:
     if len(text) > MAX_PAGE_TEXT:
         text = text[:MAX_PAGE_TEXT] + "\n[Page text truncated by Interlink]"
     return f"Final URL: {final_url}\nTitle: {title}\n\n{text}"
+
+
+def research_web(query: str) -> str:
+    """Run two searches, deduplicate URLs, and rank sources with transparent heuristics."""
+    variants = [query, f"{query} official reliable sources"]
+    collected: dict[str, dict[str, object]] = {}
+    for variant in variants:
+        raw_results = search_web(variant)
+        try:
+            results = json.loads(raw_results)
+        except json.JSONDecodeError:
+            continue
+        for result in results:
+            url = str(result.get("url", ""))
+            parsed = urlparse(url)
+            canonical = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/").casefold()
+            if not canonical:
+                continue
+            host = (parsed.hostname or "").casefold()
+            score = 50
+            reasons: list[str] = []
+            if parsed.scheme == "https":
+                score += 5
+                reasons.append("HTTPS")
+            if host.endswith((".gov", ".gov.za", ".edu", ".ac.za")):
+                score += 25
+                reasons.append("government or academic domain")
+            if any(marker in host for marker in ("wikipedia.org", "reuters.com", "apnews.com")):
+                score += 10
+                reasons.append("established reference or news domain")
+            collected.setdefault(
+                canonical,
+                {
+                    **result,
+                    "quality_score": min(score, 100),
+                    "quality_reasons": reasons or ["general public source"],
+                },
+            )
+    ranked = sorted(collected.values(), key=lambda item: int(item["quality_score"]), reverse=True)
+    if not ranked:
+        return "Multi-source research found no usable results."
+    return json.dumps(ranked[:12], indent=2, ensure_ascii=False)

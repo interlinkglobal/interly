@@ -3,8 +3,10 @@
 import sys
 from getpass import getpass
 
+from computer_agent.browser import BROWSER
 from computer_agent.chat import run_chat
 from computer_agent.config import load_settings, save_api_key
+from computer_agent.emergency import EmergencyStop
 from computer_agent.models import GroqModel
 
 
@@ -28,7 +30,16 @@ def main() -> None:
         api_key=settings.groq_api_key,
         model=settings.groq_model,
     )
-    run_chat(model=model)
+    emergency_stop = EmergencyStop()
+    if emergency_stop.start():
+        print("Emergency stop: press Esc to cancel the current request.")
+    else:
+        print("Warning: the global Esc emergency stop could not be started.")
+    try:
+        run_chat(model=model, emergency_stop=emergency_stop)
+    finally:
+        BROWSER.close()
+        emergency_stop.stop()
 
 
 if __name__ == "__main__":

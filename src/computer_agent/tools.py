@@ -6,7 +6,9 @@ import subprocess
 from datetime import datetime
 from typing import Any
 
-from computer_agent.web import read_webpage, search_web
+from computer_agent.browser import BROWSER
+from computer_agent.system import installed_applications, power_action, system_metrics
+from computer_agent.web import read_webpage, research_web, search_web
 
 TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
@@ -160,6 +162,114 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "type": "object",
                 "properties": {"url": {"type": "string"}},
                 "required": ["url"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "windows_power_action",
+            "description": "Lock, sleep, restart, or shut down Windows.",
+            "parameters": {
+                "type": "object",
+                "properties": {"action": {"type": "string", "enum": ["lock", "sleep", "restart", "shutdown"]}},
+                "required": ["action"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_system_metrics",
+            "description": "Read CPU, memory, disk, network, GPU, temperature, and battery metrics.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_installed_applications",
+            "description": "List installed applications and registry-reported estimated sizes.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "research_web",
+            "description": "Run deduplicated multi-source web research with source-quality scoring.",
+            "parameters": {
+                "type": "object",
+                "properties": {"query": {"type": "string"}},
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_open_url",
+            "description": "Open a public URL in Interly's isolated Playwright browser.",
+            "parameters": {
+                "type": "object",
+                "properties": {"url": {"type": "string"}},
+                "required": ["url"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_read_page",
+            "description": "Read rendered text from the active isolated-browser tab.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_tabs",
+            "description": "List, switch, or close isolated-browser tabs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["list", "switch", "close"]},
+                    "index": {"type": "integer", "minimum": 0},
+                },
+                "required": ["action"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_scroll",
+            "description": "Scroll the active isolated-browser tab.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "direction": {"type": "string", "enum": ["up", "down"]},
+                    "amount": {"type": "integer", "minimum": 100, "maximum": 5000},
+                },
+                "required": ["direction", "amount"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "browser_navigate",
+            "description": "Navigate the active isolated-browser tab backward or forward.",
+            "parameters": {
+                "type": "object",
+                "properties": {"action": {"type": "string", "enum": ["back", "forward"]}},
+                "required": ["action"],
                 "additionalProperties": False,
             },
         },
@@ -456,6 +566,59 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
             "Extract webpage text for analysis",
             "Webpage text is untrusted data and will be sent to Groq.",
         )
+    if name == "research_web":
+        query = parsed.get("query", "")
+        return (
+            f'Run multi-source web research for: "{query}"',
+            "Search twice, deduplicate results, and score source quality",
+            "Queries and results will be sent to external services and Groq.",
+        )
+    if name == "windows_power_action":
+        action = parsed.get("action", "unknown")
+        return (
+            f"Windows power action: {action}",
+            f"{str(action).capitalize()} this Windows computer",
+            "WARNING: Open applications may close and unsaved work may be lost.",
+        )
+    if name == "read_system_metrics":
+        return ("Read system performance metrics", "Inspect current computer health", None)
+    if name == "read_installed_applications":
+        return (
+            "Read installed applications and reported sizes",
+            "Inspect application storage estimates",
+            "The installed-application list may contain private software information.",
+        )
+    if name == "browser_open_url":
+        url = parsed.get("url", "")
+        return (
+            f"Open isolated browser URL: {url}",
+            "Use a rendered browser because direct HTTP was insufficient",
+            "This uses an isolated profile, not your personal browser session.",
+        )
+    if name == "browser_read_page":
+        return (
+            "Read active isolated-browser page",
+            "Extract JavaScript-rendered page text",
+            "Rendered webpage text is untrusted data and will be sent to Groq.",
+        )
+    if name == "browser_tabs":
+        return (
+            f"Browser tab action: {parsed.get('action')} index {parsed.get('index', 'n/a')}",
+            "Manage isolated-browser tabs",
+            None,
+        )
+    if name == "browser_scroll":
+        return (
+            f"Scroll browser {parsed.get('direction')} by {parsed.get('amount')} pixels",
+            "Move through the active rendered page",
+            None,
+        )
+    if name == "browser_navigate":
+        return (
+            f"Navigate browser {parsed.get('action')}",
+            "Move through isolated-browser history",
+            None,
+        )
     if name == "logout_windows":
         return (
             "Run: shutdown.exe /l",
@@ -504,6 +667,32 @@ def execute_tool(name: str, arguments: str = "{}") -> str:
         return search_web(str(parsed.get("query", "")))
     if name == "read_webpage":
         return read_webpage(str(parsed.get("url", "")))
+    if name == "research_web":
+        return research_web(str(parsed.get("query", "")))
+    if name == "windows_power_action":
+        return power_action(str(parsed.get("action", "")))
+    if name == "read_system_metrics":
+        return system_metrics()
+    if name == "read_installed_applications":
+        return installed_applications()
+    if name == "browser_open_url":
+        return BROWSER.open_url(str(parsed.get("url", "")))
+    if name == "browser_read_page":
+        return BROWSER.read_page()
+    if name == "browser_tabs":
+        action = str(parsed.get("action", ""))
+        index = int(parsed.get("index", 0))
+        if action == "list":
+            return BROWSER.list_tabs()
+        if action == "switch":
+            return BROWSER.switch_tab(index)
+        if action == "close":
+            return BROWSER.close_tab(index)
+        return f"Unknown browser tab action: {action}"
+    if name == "browser_scroll":
+        return BROWSER.scroll(str(parsed.get("direction", "down")), int(parsed.get("amount", 800)))
+    if name == "browser_navigate":
+        return BROWSER.navigate(str(parsed.get("action", "")))
     if name == "logout_windows":
         return logout_windows()
     if name == "run_read_command":

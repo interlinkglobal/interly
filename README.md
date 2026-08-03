@@ -4,6 +4,8 @@ Interly is an experimental, permission-aware Windows computer agent powered by G
 reason about a request, propose a local or web action, show exactly what it wants to do, and
 wait for approval before executing it.
 
+Development follows the checked 100-item plan in [ROADMAP.md](ROADMAP.md).
+
 ## Install with pipx
 
 Install [Python 3.11 or newer](https://www.python.org/downloads/) and
@@ -40,7 +42,13 @@ pipx upgrade interly
   adapters, Wi-Fi, and disks
 - Permission-gated Windows logout
 - Direct public-web search and webpage text extraction
+- Deduplicated multi-source research with transparent source-quality heuristics
 - Session-level approval for direct web access
+- Global `Esc` emergency stop for cancelling the current request
+- Guarded lock, sleep, restart, and shutdown actions
+- CPU, memory, disk, network, GPU, temperature, and battery reporting where Windows exposes it
+- Installed-application reporting with registry-provided size estimates
+- Isolated Playwright browser fallback for rendered pages, tabs, scrolling, and navigation
 - Blocking of private/local web addresses, oversized pages, unsupported downloads, invented
   application IDs, and critical Windows process termination
 
@@ -60,8 +68,9 @@ Interly is alpha software. Model responses can be wrong, and read-only system ou
 contain private information. Review every proposed action. Forced process termination can lose
 unsaved work. Web searches and selected page text are sent to external services and Groq.
 
-Browser automation, file modification, downloads, uploads, logins, purchases, and messaging are
-not implemented.
+Browser clicking and typing, personal-browser access, file modification, downloads, uploads,
+logins, purchases, and messaging are not implemented. The emergency stop prevents additional
+actions, but an operating-system call that has already completed cannot be reversed.
 
 ## Development
 

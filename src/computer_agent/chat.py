@@ -3,6 +3,9 @@
 from collections.abc import Callable
 from typing import Any
 
+from playwright.sync_api import Error as PlaywrightError
+
+from computer_agent.emergency import EmergencyStop
 from computer_agent.models import ChatModel, ModelError
 from computer_agent.tools import describe_tool, execute_tool
 
@@ -12,10 +15,14 @@ EXIT_COMMANDS = {"exit", "quit", "/exit"}
 SESSION_APPROVAL_GROUPS = {
     "search_web": "direct web access",
     "read_webpage": "direct web access",
+    "research_web": "direct web access",
 }
 PER_MESSAGE_TOOL_LIMITS = {
     "search_web": 2,
     "read_webpage": 5,
+    "research_web": 1,
+    "browser_open_url": 3,
+    "browser_read_page": 5,
 }
 MAX_MODEL_ROUNDS_PER_MESSAGE = 12
 
@@ -24,6 +31,7 @@ def run_chat(
     model: ChatModel,
     read_input: ReadInput = input,
     write_output: WriteOutput = print,
+    emergency_stop: EmergencyStop | None = None,
 ) -> list[dict[str, Any]]:
     """Chat until the user exits, then return the conversation history."""
     messages: list[dict[str, Any]] = []
@@ -31,6 +39,8 @@ def run_chat(
     write_output("Interlink is ready. Type 'exit' to stop.")
 
     while True:
+        if emergency_stop:
+            emergency_stop.reset()
         try:
             # PowerShell can prepend a Unicode marker when input is piped into Python.
             user_text = read_input("You: ").strip().lstrip("\ufeff")
@@ -44,12 +54,18 @@ def run_chat(
 
         if not user_text:
             continue
+        if emergency_stop and emergency_stop.requested():
+            write_output("Emergency stop: request cancelled.")
+            continue
 
         messages.append({"role": "user", "content": user_text})
         tool_counts: dict[str, int] = {}
         model_rounds = 0
 
         while True:
+            if emergency_stop and emergency_stop.requested():
+                write_output("Emergency stop: remaining actions cancelled.")
+                break
             model_rounds += 1
             if model_rounds > MAX_MODEL_ROUNDS_PER_MESSAGE:
                 write_output("Interlink stopped this request because it exceeded the tool limit.")
@@ -106,11 +122,15 @@ def run_chat(
                         session_approvals.add(approval_group)
                         write_output(f"Allowed {approval_group} for this Interlink session.")
 
-                result = (
-                    execute_tool(request.name, request.arguments)
-                    if approved
-                    else "Permission denied by the user. The tool was not executed."
-                )
+                if emergency_stop and emergency_stop.requested():
+                    result = "Emergency stop requested. No further actions may run."
+                elif approved:
+                    try:
+                        result = execute_tool(request.name, request.arguments)
+                    except (OSError, RuntimeError, ValueError, PlaywrightError) as error:
+                        result = f"Tool failed safely: {error}"
+                else:
+                    result = "Permission denied by the user. The tool was not executed."
                 messages.append(
                     {
                         "role": "tool",
