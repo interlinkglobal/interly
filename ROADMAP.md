@@ -1,4 +1,4 @@
-﻿# Interly: 100-Item Roadmap
+# Interly: 100-Item Roadmap
 
 This is the working roadmap for Interly. Checked items are implemented and verified. Unchecked
 items remain future work. Safety and reliability work should precede higher-risk capabilities.
@@ -132,5 +132,3 @@ items remain future work. Safety and reliability work should precede higher-risk
 98. [ ] Add GitHub Actions for tests, linting, packaging, and security checks.
 99. [ ] Publish signed versioned releases and a trusted update command.
 100. [ ] Complete an external security review and threat-model audit before a stable 1.0 release.
-
-
