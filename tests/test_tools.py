@@ -1,8 +1,10 @@
 from unittest.mock import patch
 
 from computer_agent.tools import (
+    LocalOnlyResult,
     close_or_kill_process,
     describe_tool,
+    execute_tool,
     find_applications,
     find_processes,
     get_current_time,
@@ -121,3 +123,12 @@ def test_unlisted_read_command_never_reaches_windows(run: object) -> None:
 
     assert "not allowed" in result
     run.assert_not_called()
+
+
+@patch("computer_agent.tools.run_read_command", return_value="private output")
+def test_read_command_execution_returns_local_only_result(_read: object) -> None:
+    result = execute_tool("run_read_command", '{"command":"ipconfig"}')
+
+    assert isinstance(result, LocalOnlyResult)
+    assert result.terminal_output == "private output"
+    assert "private output" not in result.model_status

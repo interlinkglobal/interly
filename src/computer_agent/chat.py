@@ -7,7 +7,7 @@ from playwright.sync_api import Error as PlaywrightError
 
 from computer_agent.emergency import EmergencyStop
 from computer_agent.models import AuthenticationModelError, ChatModel, ModelError
-from computer_agent.tools import describe_tool, execute_tool
+from computer_agent.tools import LocalOnlyResult, describe_tool, execute_tool
 
 ReadInput = Callable[[str], str]
 WriteOutput = Callable[[str], None]
@@ -145,11 +145,17 @@ def run_chat(
                         result = f"Tool failed safely: {error}"
                 else:
                     result = "Permission denied by the user. The tool was not executed."
+                if isinstance(result, LocalOnlyResult):
+                    write_output("\nLocal-only output (not sent to Groq):")
+                    write_output(result.terminal_output)
+                    model_result = result.model_status
+                else:
+                    model_result = result
                 messages.append(
                     {
                         "role": "tool",
                         "tool_call_id": request.id,
-                        "content": result,
+                        "content": model_result,
                     }
                 )
 

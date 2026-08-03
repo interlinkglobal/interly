@@ -64,6 +64,12 @@ At an approval prompt:
 
 Application launches, process termination, and logout always require individual approval.
 
+System reports are local-only by design. Raw process lists, application matches, IP and Wi-Fi
+configuration, users, routes, performance metrics, and installed-application reports are printed
+in the terminal but are never added to the conversation sent to Groq. Interly sends only a short
+completion status. For an app or process action, the user must type the exact locally displayed
+name and ID or PID before Interly can continue.
+
 ## Important limitations
 
 Interly is alpha software. Model responses can be wrong, and read-only system output may still

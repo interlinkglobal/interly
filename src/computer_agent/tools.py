@@ -3,12 +3,21 @@
 import json
 import os
 import subprocess
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from computer_agent.browser import BROWSER
 from computer_agent.system import installed_applications, power_action, system_metrics
 from computer_agent.web import read_webpage, research_web, search_web
+
+
+@dataclass(frozen=True)
+class LocalOnlyResult:
+    """Keep sensitive output in the terminal and send only a status to the model."""
+
+    model_status: str
+    terminal_output: str
 
 TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
@@ -529,14 +538,14 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
         return (
             f'Search registered applications for: "{query}"',
             "Resolve the requested name before anything is launched",
-            None,
+            "Matching applications will stay in this terminal and will not be sent to Groq.",
         )
     if name == "find_processes":
         query = parsed.get("query", "")
         return (
             f'Search running processes for: "{query}"',
             "Resolve an exact process name and PID before ending anything",
-            None,
+            "Matching process names, titles, and PIDs will stay in this terminal and will not be sent to Groq.",
         )
     if name == "close_or_kill_process":
         action = str(parsed.get("action", "unknown"))
@@ -581,12 +590,16 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
             "WARNING: Open applications may close and unsaved work may be lost.",
         )
     if name == "read_system_metrics":
-        return ("Read system performance metrics", "Inspect current computer health", None)
+        return (
+            "Read system performance metrics",
+            "Inspect current computer health",
+            "The metrics will stay in this terminal and will not be sent to Groq.",
+        )
     if name == "read_installed_applications":
         return (
             "Read installed applications and reported sizes",
             "Inspect application storage estimates",
-            "The installed-application list may contain private software information.",
+            "The installed-application list will stay in this terminal and will not be sent to Groq.",
         )
     if name == "browser_open_url":
         url = parsed.get("url", "")
@@ -629,13 +642,12 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
         command = str(parsed.get("command", ""))
         definition = READ_COMMANDS.get(command)
         display_command = definition[0] if definition else f"unknown read command: {command}"
-        sensitive = command in {"ipconfig", "wifi", "users", "routes"}
-        warning = "This output may contain private account or network details." if sensitive else None
+        warning = "The command output will stay in this terminal and will not be sent to Groq."
         return (f"Run read command: {display_command}", "Inspect local system information", warning)
     return (f"Unknown tool: {name}", "No recognized reason", "This action will be denied.")
 
 
-def execute_tool(name: str, arguments: str = "{}") -> str:
+def execute_tool(name: str, arguments: str = "{}") -> str | LocalOnlyResult:
     """Execute a known tool. Approval must happen before this function is called."""
     try:
         parsed = json.loads(arguments or "{}")
@@ -650,9 +662,23 @@ def execute_tool(name: str, arguments: str = "{}") -> str:
             str(parsed.get("application_name", "")),
         )
     if name == "find_applications":
-        return find_applications(str(parsed.get("query", "")))
+        return LocalOnlyResult(
+            model_status=(
+                "The application search completed and its matches were displayed only in the "
+                "user's terminal. Ask the user to type the exact application name and ID they "
+                "want to open; do not infer the private matches."
+            ),
+            terminal_output=find_applications(str(parsed.get("query", ""))),
+        )
     if name == "find_processes":
-        return find_processes(str(parsed.get("query", "")))
+        return LocalOnlyResult(
+            model_status=(
+                "The process search completed and its matches were displayed only in the "
+                "user's terminal. Ask the user to type the exact process name and PID they "
+                "want to close or kill; do not infer the private matches."
+            ),
+            terminal_output=find_processes(str(parsed.get("query", ""))),
+        )
     if name == "close_or_kill_process":
         try:
             process_id = int(parsed.get("process_id", 0))
@@ -672,9 +698,21 @@ def execute_tool(name: str, arguments: str = "{}") -> str:
     if name == "windows_power_action":
         return power_action(str(parsed.get("action", "")))
     if name == "read_system_metrics":
-        return system_metrics()
+        return LocalOnlyResult(
+            model_status=(
+                "The system-metrics read completed. The metrics were displayed only in the "
+                "user's terminal and were not provided to you. Do not infer their values."
+            ),
+            terminal_output=system_metrics(),
+        )
     if name == "read_installed_applications":
-        return installed_applications()
+        return LocalOnlyResult(
+            model_status=(
+                "The installed-application report completed. The report was displayed only in "
+                "the user's terminal and was not provided to you. Do not infer its contents."
+            ),
+            terminal_output=installed_applications(),
+        )
     if name == "browser_open_url":
         return BROWSER.open_url(str(parsed.get("url", "")))
     if name == "browser_read_page":
@@ -696,5 +734,13 @@ def execute_tool(name: str, arguments: str = "{}") -> str:
     if name == "logout_windows":
         return logout_windows()
     if name == "run_read_command":
-        return run_read_command(str(parsed.get("command", "")))
+        command = str(parsed.get("command", ""))
+        return LocalOnlyResult(
+            model_status=(
+                f"The local read command '{command}' completed. Its sensitive output was shown "
+                "only in the user's terminal and was not provided to you. Tell the user the "
+                "local-only data is displayed above; do not invent, summarize, or quote it."
+            ),
+            terminal_output=run_read_command(command),
+        )
     return f"Unknown tool: {name}"
