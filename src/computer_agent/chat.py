@@ -6,11 +6,12 @@ from typing import Any
 from playwright.sync_api import Error as PlaywrightError
 
 from computer_agent.emergency import EmergencyStop
-from computer_agent.models import ChatModel, ModelError
+from computer_agent.models import AuthenticationModelError, ChatModel, ModelError
 from computer_agent.tools import describe_tool, execute_tool
 
 ReadInput = Callable[[str], str]
 WriteOutput = Callable[[str], None]
+ReconfigureGroq = Callable[[], bool]
 EXIT_COMMANDS = {"exit", "quit", "/exit"}
 SESSION_APPROVAL_GROUPS = {
     "search_web": "direct web access",
@@ -32,6 +33,7 @@ def run_chat(
     read_input: ReadInput = input,
     write_output: WriteOutput = print,
     emergency_stop: EmergencyStop | None = None,
+    reconfigure_groq: ReconfigureGroq | None = None,
 ) -> list[dict[str, Any]]:
     """Chat until the user exits, then return the conversation history."""
     messages: list[dict[str, Any]] = []
@@ -51,6 +53,15 @@ def run_chat(
         if user_text.lower() in EXIT_COMMANDS:
             write_output("Goodbye!")
             break
+
+        if user_text.casefold() == "groq":
+            if reconfigure_groq is None:
+                write_output("Groq key replacement is unavailable in this mode.")
+            elif reconfigure_groq():
+                write_output("Groq API key replaced. The current Interlink session is ready.")
+            else:
+                write_output("Groq API key was not changed.")
+            continue
 
         if not user_text:
             continue
@@ -72,6 +83,9 @@ def run_chat(
                 break
             try:
                 turn = model.reply(messages)
+            except AuthenticationModelError as error:
+                write_output(f"Error: {error}")
+                break
             except ModelError as error:
                 write_output(f"Error: {error}")
                 break

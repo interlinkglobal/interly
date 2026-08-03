@@ -127,3 +127,19 @@ def test_web_access_can_be_approved_for_session(execute: object) -> None:
     run_chat(WebModel(), lambda _prompt: next(answers), lambda _text: None)
 
     assert execute.call_count == 2
+
+
+def test_groq_command_reconfigures_locally_without_calling_model() -> None:
+    model = OfflineModel()
+    model.reply = lambda _messages: (_ for _ in ()).throw(AssertionError("model was called"))
+    answers = iter(["groq", "exit"])
+    reconfigured: list[bool] = []
+
+    run_chat(
+        model,
+        lambda _prompt: next(answers),
+        lambda _text: None,
+        reconfigure_groq=lambda: reconfigured.append(True) or True,
+    )
+
+    assert reconfigured == [True]

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any, Protocol, TypedDict
 
-from groq import Groq
+from groq import AuthenticationError, Groq
 
 from computer_agent.tools import TOOL_SCHEMAS
 
@@ -110,12 +110,20 @@ class ModelError(RuntimeError):
     """A model request failed in a way we can show cleanly to the user."""
 
 
+class AuthenticationModelError(ModelError):
+    """The configured model-provider credential was rejected."""
+
+
 class GroqModel:
     """Send the conversation to a model hosted by Groq."""
 
     def __init__(self, api_key: str, model: str, client: Any | None = None) -> None:
         self.model = model
         self.client = client or Groq(api_key=api_key)
+
+    def update_api_key(self, api_key: str) -> None:
+        """Replace the Groq client after a new key has been validated."""
+        self.client = Groq(api_key=api_key)
 
     def reply(self, messages: list[dict[str, Any]]) -> ModelTurn:
         try:
@@ -126,6 +134,10 @@ class GroqModel:
                 tool_choice="auto",
             )
             message = response.choices[0].message
+        except AuthenticationError as error:
+            raise AuthenticationModelError(
+                "Groq rejected the saved API key. Type 'groq' to replace it."
+            ) from error
         except Exception as error:
             raise ModelError(f"Groq request failed: {error}") from error
 

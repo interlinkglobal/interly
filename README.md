@@ -24,7 +24,9 @@ interlink
 ```
 
 On first launch, Interly asks for a [Groq API key](https://console.groq.com/keys). Input is
-hidden and the key is stored under the current Windows user's application-data directory.
+hidden, validated before saving, and stored under the current Windows user's application-data
+directory. Type `groq` at any Interly `You:` prompt to securely validate and replace the saved
+key without restarting the session.
 
 Upgrade later with:
 
