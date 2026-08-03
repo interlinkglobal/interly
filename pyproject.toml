@@ -1,0 +1,49 @@
+[project]
+name = "interly"
+version = "0.1.0"
+description = "A permission-aware Windows computer agent powered by Groq"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{name = "Interly contributors"}]
+keywords = ["agent", "automation", "groq", "windows", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "beautifulsoup4==4.15.0",
+    "groq==1.6.0",
+    "pydantic-settings==2.14.2",
+    "python-dotenv==1.2.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "ruff==0.16.1"]
+
+[project.scripts]
+brocode = "computer_agent.__main__:main"
+interlink = "computer_agent.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/interlinkglobal/Interly"
+Repository = "https://github.com/interlinkglobal/Interly"
+Issues = "https://github.com/interlinkglobal/Interly/issues"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100

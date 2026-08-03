@@ -1,0 +1,122 @@
+"""The Stage 1 terminal conversation loop."""
+
+from collections.abc import Callable
+from typing import Any
+
+from computer_agent.models import ChatModel, ModelError
+from computer_agent.tools import describe_tool, execute_tool
+
+ReadInput = Callable[[str], str]
+WriteOutput = Callable[[str], None]
+EXIT_COMMANDS = {"exit", "quit", "/exit"}
+SESSION_APPROVAL_GROUPS = {
+    "search_web": "direct web access",
+    "read_webpage": "direct web access",
+}
+PER_MESSAGE_TOOL_LIMITS = {
+    "search_web": 2,
+    "read_webpage": 5,
+}
+MAX_MODEL_ROUNDS_PER_MESSAGE = 12
+
+
+def run_chat(
+    model: ChatModel,
+    read_input: ReadInput = input,
+    write_output: WriteOutput = print,
+) -> list[dict[str, Any]]:
+    """Chat until the user exits, then return the conversation history."""
+    messages: list[dict[str, Any]] = []
+    session_approvals: set[str] = set()
+    write_output("Interlink is ready. Type 'exit' to stop.")
+
+    while True:
+        try:
+            # PowerShell can prepend a Unicode marker when input is piped into Python.
+            user_text = read_input("You: ").strip().lstrip("\ufeff")
+        except (EOFError, KeyboardInterrupt):
+            write_output("\nGoodbye!")
+            break
+
+        if user_text.lower() in EXIT_COMMANDS:
+            write_output("Goodbye!")
+            break
+
+        if not user_text:
+            continue
+
+        messages.append({"role": "user", "content": user_text})
+        tool_counts: dict[str, int] = {}
+        model_rounds = 0
+
+        while True:
+            model_rounds += 1
+            if model_rounds > MAX_MODEL_ROUNDS_PER_MESSAGE:
+                write_output("Interlink stopped this request because it exceeded the tool limit.")
+                break
+            try:
+                turn = model.reply(messages)
+            except ModelError as error:
+                write_output(f"Error: {error}")
+                break
+
+            messages.append(turn.assistant_message)
+            if turn.content:
+                write_output(f"Agent: {turn.content}")
+
+            if not turn.tool_requests:
+                break
+
+            for request in turn.tool_requests:
+                tool_counts[request.name] = tool_counts.get(request.name, 0) + 1
+                limit = PER_MESSAGE_TOOL_LIMITS.get(request.name)
+                if limit is not None and tool_counts[request.name] > limit:
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": request.id,
+                            "content": (
+                                f"Per-question limit reached for {request.name}. Do not retry. "
+                                "Answer using results already collected or explain the limitation."
+                            ),
+                        }
+                    )
+                    continue
+
+                action, reason, warning = describe_tool(request.name, request.arguments)
+                write_output(f"\nInterlink wants to: {action}")
+                write_output(f"Reason: {reason}")
+                if warning:
+                    write_output(warning)
+                approval_group = SESSION_APPROVAL_GROUPS.get(request.name)
+                if approval_group in session_approvals:
+                    approved = True
+                else:
+                    prompt = (
+                        f"Allow? [y/N/a=allow {approval_group} for this session]: "
+                        if approval_group
+                        else "Allow? [y/N]: "
+                    )
+                    try:
+                        answer = read_input(prompt).strip().lower()
+                    except (EOFError, KeyboardInterrupt):
+                        answer = ""
+                    approved = answer in {"y", "a"}
+                    if answer == "a" and approval_group:
+                        session_approvals.add(approval_group)
+                        write_output(f"Allowed {approval_group} for this Interlink session.")
+
+                result = (
+                    execute_tool(request.name, request.arguments)
+                    if approved
+                    else "Permission denied by the user. The tool was not executed."
+                )
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": request.id,
+                        "content": result,
+                    }
+                )
+
+    return messages

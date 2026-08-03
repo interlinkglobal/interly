@@ -1,0 +1,129 @@
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from computer_agent.chat import run_chat
+from computer_agent.models import GroqModel, ModelTurn, OfflineModel, ToolRequest
+
+
+def test_offline_model_can_see_conversation_history() -> None:
+    model = OfflineModel()
+    messages = [
+        {"role": "user", "content": "First"},
+        {"role": "assistant", "content": "Reply"},
+        {"role": "user", "content": "Second"},
+    ]
+
+    reply = model.reply(messages).content
+
+    assert reply is not None
+    assert 'I received: "Second"' in reply
+    assert "2 user message(s)" in reply
+
+
+def test_chat_ignores_empty_input_and_stops_on_exit() -> None:
+    answers = iter(["", "Hello", "exit"])
+    output: list[str] = []
+
+    history = run_chat(
+        model=OfflineModel(),
+        read_input=lambda _prompt: next(answers),
+        write_output=output.append,
+    )
+
+    assert [message["role"] for message in history] == ["user", "assistant"]
+    assert history[0]["content"] == "Hello"
+    assert output[-1] == "Goodbye!"
+
+
+def test_groq_model_returns_text_from_client() -> None:
+    response = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content="Hello from Groq"))]
+    )
+
+    class FakeCompletions:
+        def create(self, **_arguments: object) -> object:
+            return response
+
+    fake_client = SimpleNamespace(chat=SimpleNamespace(completions=FakeCompletions()))
+    model = GroqModel(api_key="test-key", model="test-model", client=fake_client)
+
+    assert model.reply([{"role": "user", "content": "Hello"}]).content == "Hello from Groq"
+
+
+def test_tool_requires_explicit_approval() -> None:
+    class ToolCallingModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def reply(self, _messages: list[dict[str, object]]) -> ModelTurn:
+            self.calls += 1
+            if self.calls == 1:
+                request = ToolRequest(id="call-1", name="get_current_time", arguments="{}")
+                return ModelTurn(
+                    content=None,
+                    tool_requests=[request],
+                    assistant_message={
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": request.id,
+                                "type": "function",
+                                "function": {"name": request.name, "arguments": "{}"},
+                            }
+                        ],
+                    },
+                )
+            return ModelTurn(
+                content="Finished",
+                tool_requests=[],
+                assistant_message={"role": "assistant", "content": "Finished"},
+            )
+
+    answers = iter(["What time is it?", "n", "exit"])
+    history = run_chat(ToolCallingModel(), lambda _prompt: next(answers), lambda _text: None)
+
+    tool_message = next(message for message in history if message["role"] == "tool")
+    assert "denied" in str(tool_message["content"])
+
+
+@patch("computer_agent.chat.execute_tool", return_value="safe web result")
+def test_web_access_can_be_approved_for_session(execute: object) -> None:
+    class WebModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def reply(self, _messages: list[dict[str, object]]) -> ModelTurn:
+            self.calls += 1
+            if self.calls == 1:
+                request = ToolRequest(id="search", name="search_web", arguments='{"query":"x"}')
+            elif self.calls == 2:
+                request = ToolRequest(
+                    id="read", name="read_webpage", arguments='{"url":"https://example.com"}'
+                )
+            else:
+                return ModelTurn(
+                    content="Finished",
+                    tool_requests=[],
+                    assistant_message={"role": "assistant", "content": "Finished"},
+                )
+            return ModelTurn(
+                content=None,
+                tool_requests=[request],
+                assistant_message={
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": request.id,
+                            "type": "function",
+                            "function": {"name": request.name, "arguments": request.arguments},
+                        }
+                    ],
+                },
+            )
+
+    answers = iter(["Find something", "a", "exit"])
+    run_chat(WebModel(), lambda _prompt: next(answers), lambda _text: None)
+
+    assert execute.call_count == 2
