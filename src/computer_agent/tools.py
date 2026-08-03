@@ -538,14 +538,14 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
         return (
             f'Search registered applications for: "{query}"',
             "Resolve the requested name before anything is launched",
-            "Matching applications will stay in this terminal and will not be sent to Groq.",
+            "Choose Y to keep matches terminal-only, or A to explicitly allow Groq access.",
         )
     if name == "find_processes":
         query = parsed.get("query", "")
         return (
             f'Search running processes for: "{query}"',
             "Resolve an exact process name and PID before ending anything",
-            "Matching process names, titles, and PIDs will stay in this terminal and will not be sent to Groq.",
+            "Choose Y to keep matches terminal-only, or A to explicitly allow Groq access.",
         )
     if name == "close_or_kill_process":
         action = str(parsed.get("action", "unknown"))
@@ -593,13 +593,13 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
         return (
             "Read system performance metrics",
             "Inspect current computer health",
-            "The metrics will stay in this terminal and will not be sent to Groq.",
+            "Choose Y to keep metrics terminal-only, or A to explicitly allow Groq access.",
         )
     if name == "read_installed_applications":
         return (
             "Read installed applications and reported sizes",
             "Inspect application storage estimates",
-            "The installed-application list will stay in this terminal and will not be sent to Groq.",
+            "Choose Y to keep the list terminal-only, or A to explicitly allow Groq access.",
         )
     if name == "browser_open_url":
         url = parsed.get("url", "")
@@ -642,7 +642,7 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
         command = str(parsed.get("command", ""))
         definition = READ_COMMANDS.get(command)
         display_command = definition[0] if definition else f"unknown read command: {command}"
-        warning = "The command output will stay in this terminal and will not be sent to Groq."
+        warning = "Choose Y to keep output terminal-only, or A to explicitly allow Groq access."
         return (f"Run read command: {display_command}", "Inspect local system information", warning)
     return (f"Unknown tool: {name}", "No recognized reason", "This action will be denied.")
 

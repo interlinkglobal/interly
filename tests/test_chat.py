@@ -186,3 +186,43 @@ def test_local_only_output_is_printed_but_never_added_to_model_messages(_execute
 
     assert any("PRIVATE-IP-192.0.2.1" in line for line in output)
     assert "PRIVATE-IP-192.0.2.1" not in str(history)
+
+
+@patch(
+    "computer_agent.chat.execute_tool",
+    return_value=LocalOnlyResult(
+        model_status="Local report completed.",
+        terminal_output="AUTHORIZED-SYSTEM-DATA",
+    ),
+)
+def test_sensitive_a_approval_explicitly_shares_output_with_model(_execute: object) -> None:
+    class AccessCheckingModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def reply(self, messages: list[dict[str, object]]) -> ModelTurn:
+            self.calls += 1
+            if self.calls == 1:
+                request = ToolRequest(
+                    id="private", name="read_system_metrics", arguments="{}"
+                )
+                return ModelTurn(
+                    content=None,
+                    tool_requests=[request],
+                    assistant_message={"role": "assistant", "content": None},
+                )
+            assert "AUTHORIZED-SYSTEM-DATA" in str(messages)
+            return ModelTurn(
+                content="Authorized data processed.",
+                tool_requests=[],
+                assistant_message={"role": "assistant", "content": "Done"},
+            )
+
+    answers = iter(["Show metrics", "a", "exit"])
+    history = run_chat(
+        AccessCheckingModel(),
+        lambda _prompt: next(answers),
+        lambda _text: None,
+    )
+
+    assert "AUTHORIZED-SYSTEM-DATA" in str(history)

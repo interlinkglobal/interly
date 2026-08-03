@@ -56,19 +56,28 @@ pipx upgrade interly
 
 ## Approval controls
 
-At an approval prompt:
+At an ordinary approval prompt:
 
 - `y` approves that single action.
 - Enter or `n` denies it.
 - Web prompts also offer `a`, which allows direct web access for the current Interly session.
 
+Sensitive local-read prompts use a different meaning:
+
+- `Y` runs the command and keeps its raw output only in the terminal.
+- `N` denies the command.
+- `A` runs the command and explicitly allows that command's output to be sent to Groq.
+
+Sensitive `A` approval applies to one command only; it is never remembered for the session.
+
 Application launches, process termination, and logout always require individual approval.
 
-System reports are local-only by design. Raw process lists, application matches, IP and Wi-Fi
+System reports default to local-only. Raw process lists, application matches, IP and Wi-Fi
 configuration, users, routes, performance metrics, and installed-application reports are printed
-in the terminal but are never added to the conversation sent to Groq. Interly sends only a short
-completion status. For an app or process action, the user must type the exact locally displayed
-name and ID or PID before Interly can continue.
+in the terminal. With `Y`, Interly sends Groq only a short completion status. With `A`, the user
+explicitly authorizes that one output to be included in the Groq conversation. For a local-only
+app or process lookup, the user must type the exact displayed name and ID or PID before Interly
+can continue.
 
 ## Important limitations
 

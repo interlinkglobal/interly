@@ -18,6 +18,13 @@ SESSION_APPROVAL_GROUPS = {
     "read_webpage": "direct web access",
     "research_web": "direct web access",
 }
+SENSITIVE_LOCAL_TOOLS = {
+    "find_applications",
+    "find_processes",
+    "read_installed_applications",
+    "read_system_metrics",
+    "run_read_command",
+}
 PER_MESSAGE_TOOL_LIMITS = {
     "search_web": 2,
     "read_webpage": 5,
@@ -98,6 +105,7 @@ def run_chat(
                 break
 
             for request in turn.tool_requests:
+                share_sensitive_output = False
                 tool_counts[request.name] = tool_counts.get(request.name, 0) + 1
                 limit = PER_MESSAGE_TOOL_LIMITS.get(request.name)
                 if limit is not None and tool_counts[request.name] > limit:
@@ -122,17 +130,21 @@ def run_chat(
                 if approval_group in session_approvals:
                     approved = True
                 else:
-                    prompt = (
-                        f"Allow? [y/N/a=allow {approval_group} for this session]: "
-                        if approval_group
-                        else "Allow? [y/N]: "
-                    )
+                    if request.name in SENSITIVE_LOCAL_TOOLS:
+                        prompt = "Allow? [Y=local only/N=deny/A=allow Groq access]: "
+                    elif approval_group:
+                        prompt = f"Allow? [Y/N/A=allow {approval_group} for this session]: "
+                    else:
+                        prompt = "Allow? [Y/N]: "
                     try:
                         answer = read_input(prompt).strip().lower()
                     except (EOFError, KeyboardInterrupt):
                         answer = ""
                     approved = answer in {"y", "a"}
-                    if answer == "a" and approval_group:
+                    share_sensitive_output = (
+                        answer == "a" and request.name in SENSITIVE_LOCAL_TOOLS
+                    )
+                    if answer == "a" and approval_group and not share_sensitive_output:
                         session_approvals.add(approval_group)
                         write_output(f"Allowed {approval_group} for this Interlink session.")
 
@@ -146,9 +158,20 @@ def run_chat(
                 else:
                     result = "Permission denied by the user. The tool was not executed."
                 if isinstance(result, LocalOnlyResult):
-                    write_output("\nLocal-only output (not sent to Groq):")
+                    heading = (
+                        "\nOutput (Groq access explicitly allowed):"
+                        if share_sensitive_output
+                        else "\nLocal-only output (not sent to Groq):"
+                    )
+                    write_output(heading)
                     write_output(result.terminal_output)
-                    model_result = result.model_status
+                    if share_sensitive_output:
+                        model_result = (
+                            "The local command completed. The user explicitly authorized Groq "
+                            f"access to this command output:\n{result.terminal_output}"
+                        )
+                    else:
+                        model_result = result.model_status
                 else:
                     model_result = result
                 messages.append(
