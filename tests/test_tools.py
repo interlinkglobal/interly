@@ -10,6 +10,7 @@ from computer_agent.tools import (
     find_processes,
     get_current_time,
     open_application,
+    open_executable_command,
     run_read_command,
 )
 
@@ -54,6 +55,36 @@ def test_invented_application_id_is_rejected(get_apps: object, popen: object) ->
 
     assert "nothing was opened" in result
     popen.assert_not_called()
+
+
+@patch("computer_agent.tools.subprocess.Popen")
+@patch("computer_agent.tools.resolve_executable_command")
+def test_explicit_executable_command_is_resolved_before_launch(resolve: object, popen: object) -> None:
+    resolve.return_value = [r"C:\Program Files\Google\Chrome\Application\chrome.exe"]
+
+    result = open_executable_command("chrome.exe")
+
+    assert "Opened executable" in result
+    resolve.assert_called_once_with("chrome.exe")
+    popen.assert_called_once_with(
+        [r"C:\Program Files\Google\Chrome\Application\chrome.exe"]
+    )
+
+
+@patch("computer_agent.tools.subprocess.Popen")
+def test_executable_command_rejects_shell_syntax(popen: object) -> None:
+    result = open_executable_command("chrome & calc")
+
+    assert "nothing was opened" in result
+    popen.assert_not_called()
+
+
+def test_executable_command_schema_accepts_one_token_only() -> None:
+    schema = next(
+        tool for tool in TOOL_SCHEMAS if tool["function"]["name"] == "open_executable_command"
+    )
+
+    assert schema["function"]["parameters"]["required"] == ["command_name"]
 
 
 @patch("computer_agent.tools.get_running_processes")

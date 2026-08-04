@@ -33,7 +33,7 @@ items remain future work. Safety and reliability work should precede higher-risk
 
 21. [✅] Read the current local date, time, and timezone.
 22. [✅] Discover applications registered with Windows.
-23. [✅] Open a selected registered application after approval.
+23. [✅] Open a selected registered application or resolved executable command after approval.
 24. [✅] Resolve ambiguous application names before launching.
 25. [✅] Count and list running processes.
 26. [✅] Find processes by name or visible window title.

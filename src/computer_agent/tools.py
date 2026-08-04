@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -56,6 +57,27 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     },
                 },
                 "required": ["application_id", "application_name"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_executable_command",
+            "description": (
+                "Open an explicitly requested Windows executable command such as chrome or "
+                "chrome.exe. Accepts one command token only; no paths, arguments, or shell syntax."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command_name": {
+                        "type": "string",
+                        "description": "Exact executable token stated by the user.",
+                    }
+                },
+                "required": ["command_name"],
                 "additionalProperties": False,
             },
         },
@@ -513,6 +535,67 @@ def find_applications(query: str) -> str:
     return json.dumps(results, indent=2)
 
 
+def resolve_executable_command(command_name: str) -> list[str]:
+    """Resolve one plain executable token through PATH and Windows App Paths."""
+    token = command_name.strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]*(?:\.exe)?", token):
+        return []
+    executable = token if token.casefold().endswith(".exe") else f"{token}.exe"
+    candidates: list[str] = []
+
+    try:
+        completed = subprocess.run(
+            ["where.exe", executable],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=10,
+            check=False,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if completed.returncode == 0:
+            candidates.extend(line.strip() for line in completed.stdout.splitlines())
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    try:
+        import winreg
+
+        key_path = rf"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{executable}"
+        for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            try:
+                with winreg.OpenKey(hive, key_path) as key:
+                    candidates.append(str(winreg.QueryValue(key, None)))
+            except OSError:
+                continue
+    except ImportError:
+        pass
+
+    unique: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        cleaned = candidate.strip().strip('"')
+        if not cleaned.casefold().endswith(".exe") or cleaned.casefold() in seen:
+            continue
+        seen.add(cleaned.casefold())
+        unique.append(cleaned)
+    return unique
+
+
+def open_executable_command(command_name: str) -> str:
+    """Resolve and launch one explicit executable command without invoking a shell."""
+    candidates = resolve_executable_command(command_name)
+    if not candidates:
+        return f'Windows could not resolve executable command "{command_name}"; nothing was opened.'
+    if len(candidates) > 1:
+        return (
+            f'Executable command "{command_name}" matched multiple paths; nothing was opened:\n'
+            + "\n".join(candidates)
+        )
+    subprocess.Popen([candidates[0]])
+    return f"Opened executable: {candidates[0]}"
+
+
 def open_application(application_id: str, application_name: str) -> str:
     """Launch an exact entry from the current Windows application catalog."""
     registered = get_registered_applications()
@@ -663,6 +746,13 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
             f"Open registered application: {application_name} ({application_id})",
             "Launch the selected Windows application",
             None,
+        )
+    if name == "open_executable_command":
+        command_name = parsed.get("command_name", "")
+        return (
+            f"Resolve and open executable command: {command_name}",
+            "Launch the exact command token explicitly requested by the user",
+            "Arguments, paths, and shell syntax are not allowed.",
         )
     if name == "find_applications":
         query = parsed.get("query", "")
@@ -882,6 +972,8 @@ def execute_tool(name: str, arguments: str = "{}") -> str | LocalOnlyResult:
             str(parsed.get("application_id", "")),
             str(parsed.get("application_name", "")),
         )
+    if name == "open_executable_command":
+        return open_executable_command(str(parsed.get("command_name", "")))
     if name == "find_applications":
         return LocalOnlyResult(
             model_status=(

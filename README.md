@@ -38,7 +38,7 @@ pipx upgrade interly
 
 - Groq-powered terminal conversation with in-session memory
 - Approval before every local action
-- Open any application registered with Windows
+- Open applications registered with Windows or explicit executable commands resolved by Windows
 - Discover, close, or forcibly terminate exact processes by PID
 - Read-only system commands for processes, system information, networking, users, routes,
   adapters, Wi-Fi, and disks
