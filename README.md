@@ -30,9 +30,13 @@ key without restarting the session.
 
 Upgrade later with:
 
-```powershell
-pipx upgrade interly
+```text
+update
 ```
+
+Run `update` at any Interly `You:` prompt. Interly compares the installed Git commit with its
+development branch, upgrades the existing pipx installation only when needed, and asks you to
+restart Interly after a successful update.
 
 ## Current capabilities
 

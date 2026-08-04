@@ -11,6 +11,7 @@ from computer_agent.chat import run_chat
 from computer_agent.config import load_settings, save_api_key
 from computer_agent.emergency import EmergencyStop
 from computer_agent.models import GroqModel
+from computer_agent.updater import update_interly
 
 SecretInput = Callable[[str], str]
 Output = Callable[[str], None]
@@ -73,6 +74,7 @@ def main() -> None:
             model=model,
             emergency_stop=emergency_stop,
             reconfigure_groq=reconfigure_groq,
+            update_interly=update_interly,
         )
     finally:
         BROWSER.close()
