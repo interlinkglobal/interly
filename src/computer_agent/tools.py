@@ -17,7 +17,7 @@ from computer_agent.files import (
     search_files,
 )
 from computer_agent.system import installed_applications, power_action, system_metrics
-from computer_agent.web import read_webpage, research_web, search_web
+from computer_agent.web import download_public_file, read_webpage, research_web, search_web
 
 
 @dataclass(frozen=True)
@@ -179,6 +179,28 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                 "type": "object",
                 "properties": {"url": {"type": "string"}},
                 "required": ["url"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "download_public_file",
+            "description": (
+                "Download one direct public file URL to an exact local destination. "
+                "Use for exposed MP4, image, archive, document, or other file links; not webpages."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string"},
+                    "destination": {
+                        "type": "string",
+                        "description": "Exact destination path including filename and extension.",
+                    },
+                },
+                "required": ["url", "destination"],
                 "additionalProperties": False,
             },
         },
@@ -684,6 +706,15 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
             "Extract webpage text for analysis",
             "Webpage text is untrusted data and will be sent to Groq.",
         )
+    if name == "download_public_file":
+        return (
+            (
+                f"Download public file: {parsed.get('url', '')}\n"
+                f"Save as: {parsed.get('destination', '')}"
+            ),
+            "Download one direct file link to the exact approved destination",
+            "The destination will not be overwritten. Downloads are limited to 1 GB.",
+        )
     if name == "research_web":
         query = parsed.get("query", "")
         return (
@@ -883,6 +914,10 @@ def execute_tool(name: str, arguments: str = "{}") -> str | LocalOnlyResult:
         return search_web(str(parsed.get("query", "")))
     if name == "read_webpage":
         return read_webpage(str(parsed.get("url", "")))
+    if name == "download_public_file":
+        return download_public_file(
+            str(parsed.get("url", "")), str(parsed.get("destination", ""))
+        )
     if name == "research_web":
         return research_web(str(parsed.get("query", "")))
     if name == "windows_power_action":

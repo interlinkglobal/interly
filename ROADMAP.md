@@ -91,7 +91,7 @@ items remain future work. Safety and reliability work should precede higher-risk
 66. [ ] Send deleted items to the Windows Recycle Bin.
 67. [ ] Summarize PDF, Word, spreadsheet, and presentation files.
 68. [ ] Compare two files and explain their differences.
-69. [ ] Download files with URL, type, size, hash, and destination approval.
+69. [✅] Download direct public file URLs with type, size, hash, and destination approval.
 70. [ ] Add malware scanning and quarantine checks for downloads.
 
 ## 8. Desktop interaction and media

@@ -154,6 +154,27 @@ def test_browser_click_requires_control_preview() -> None:
     ]
 
 
+def test_download_tool_requires_url_and_exact_destination() -> None:
+    schema = next(
+        tool for tool in TOOL_SCHEMAS if tool["function"]["name"] == "download_public_file"
+    )
+
+    assert schema["function"]["parameters"]["required"] == ["url", "destination"]
+
+
+@patch("computer_agent.tools.download_public_file", return_value="downloaded")
+def test_download_tool_executes_only_after_dispatch(download: object) -> None:
+    result = execute_tool(
+        "download_public_file",
+        '{"url":"https://example.com/video.mp4","destination":"C:/Downloads/video.mp4"}',
+    )
+
+    assert result == "downloaded"
+    download.assert_called_once_with(
+        "https://example.com/video.mp4", "C:/Downloads/video.mp4"
+    )
+
+
 @patch("computer_agent.tools.read_text_file", return_value="private file data")
 def test_file_read_is_local_only_by_default(_read: object) -> None:
     result = execute_tool("read_text_file", '{"path":"C:/private.txt"}')

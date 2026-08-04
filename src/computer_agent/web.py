@@ -1,8 +1,10 @@
 """Permission-gated public web access with local-network protections."""
 
+import hashlib
 import ipaddress
 import json
 import socket
+from pathlib import Path
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 
 import httpx
@@ -12,6 +14,7 @@ USER_AGENT = "Interlink/0.1 (+local personal assistant)"
 MAX_DOWNLOAD_BYTES = 2_000_000
 MAX_PAGE_TEXT = 25_000
 MAX_REDIRECTS = 5
+MAX_FILE_DOWNLOAD_BYTES = 1_000_000_000
 
 
 class WebAccessError(RuntimeError):
@@ -72,6 +75,66 @@ def download_public_text(url: str) -> tuple[str, str, str]:
             except httpx.HTTPError as error:
                 raise WebAccessError(f"Web request failed: {error}") from error
     raise WebAccessError("Website exceeded the redirect limit.")
+
+
+def download_public_file(url: str, destination: str) -> str:
+    """Stream one direct public file URL to an explicit path without overwriting."""
+    target = Path(destination).expanduser().resolve()
+    if target.exists():
+        return f"Destination already exists; nothing was downloaded: {target}"
+    if not target.name:
+        return "A destination filename is required."
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.interly-download")
+    if temporary.exists():
+        return f"Temporary download already exists; remove it before retrying: {temporary}"
+
+    current_url = url
+    headers = {"User-Agent": USER_AGENT, "Accept": "*/*"}
+    try:
+        with httpx.Client(follow_redirects=False, timeout=30.0, headers=headers) as client:
+            for _redirect in range(MAX_REDIRECTS + 1):
+                validate_public_url(current_url)
+                with client.stream("GET", current_url) as response:
+                    if response.is_redirect:
+                        location = response.headers.get("location")
+                        if not location:
+                            raise WebAccessError("Server returned an invalid redirect.")
+                        current_url = str(response.url.join(location))
+                        continue
+
+                    response.raise_for_status()
+                    content_type = response.headers.get("content-type", "").split(";", 1)[0]
+                    if content_type.casefold() in {"text/html", "application/xhtml+xml"}:
+                        raise WebAccessError(
+                            "The URL returned a webpage, not a direct file. Use the exposed file URL."
+                        )
+                    content_length = response.headers.get("content-length")
+                    if content_length and int(content_length) > MAX_FILE_DOWNLOAD_BYTES:
+                        raise WebAccessError("File exceeds Interly's 1 GB download limit.")
+
+                    digest = hashlib.sha256()
+                    downloaded = 0
+                    with temporary.open("xb") as output:
+                        for chunk in response.iter_bytes():
+                            downloaded += len(chunk)
+                            if downloaded > MAX_FILE_DOWNLOAD_BYTES:
+                                raise WebAccessError("File exceeds Interly's 1 GB download limit.")
+                            digest.update(chunk)
+                            output.write(chunk)
+                    temporary.replace(target)
+                    return (
+                        f"Downloaded file to {target}\n"
+                        f"Final URL: {response.url}\n"
+                        f"Content type: {content_type or 'unknown'}\n"
+                        f"Bytes: {downloaded}\n"
+                        f"SHA-256: {digest.hexdigest()}"
+                    )
+            raise WebAccessError("File URL exceeded the redirect limit.")
+    except (httpx.HTTPError, OSError, ValueError, WebAccessError) as error:
+        temporary.unlink(missing_ok=True)
+        return f"Download failed safely: {error}"
 
 
 def search_web(query: str) -> str:
