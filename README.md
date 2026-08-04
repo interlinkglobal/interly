@@ -8,15 +8,34 @@ Development follows the checked 100-item plan in [ROADMAP.md](ROADMAP.md).
 
 ## Install on Windows
 
-Open Command Prompt or PowerShell and run this one command:
+The primary installation path is Windows Package Manager. On a new Windows computer, open
+Command Prompt and run:
+
+```cmd
+winget install --id InterlinkGlobal.Interly --exact
+```
+
+Then launch Interly from any Command Prompt:
+
+```cmd
+interlink
+```
+
+The WinGet package contains a standalone Windows executable and does not require Python, pipx,
+Git, Node.js, or npm on the user's computer.
+
+### Development and fallback installer
+
+For branch testing, development installations, or recovery when WinGet is unavailable, open
+Command Prompt or PowerShell and run:
 
 ```cmd
 powershell -NoProfile -ExecutionPolicy Bypass -Command "irm 'https://raw.githubusercontent.com/interlinkglobal/Interly/agent/next-ten-roadmap/install.ps1' | iex"
 ```
 
-The installer detects suitable Python and Git installations, installs either when necessary,
+This fallback installer detects suitable Python and Git installations, installs either when necessary,
 installs and configures pipx, installs Interly, verifies the command, and launches it. Node.js is
-not required. Run the installer once; use Interly's built-in `update` command afterward.
+not required. It remains separate from the standalone WinGet distribution.
 
 On first launch, Interly asks for a [Groq API key](https://console.groq.com/keys). Input is
 hidden, validated before saving, and stored under the current Windows user's application-data

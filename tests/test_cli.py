@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from computer_agent.__main__ import prompt_for_valid_groq_key
+from computer_agent.__main__ import main, prompt_for_valid_groq_key
 
 
 @patch("computer_agent.__main__.save_api_key")
@@ -27,3 +27,10 @@ def test_working_groq_key_is_validated_before_save(groq: object, save: object) -
     assert result == "new-key"
     groq.return_value.models.list.assert_called_once_with()
     save.assert_called_once_with("new-key")
+
+
+@patch("computer_agent.__main__.sys.argv", ["interlink", "--version"])
+def test_version_flag_exits_before_setup(capsys: object) -> None:
+    main()
+
+    assert "Interly 0.5.0" in capsys.readouterr().out

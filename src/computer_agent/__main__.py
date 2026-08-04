@@ -6,6 +6,7 @@ from getpass import getpass
 
 from groq import APIError, AuthenticationError, Groq
 
+from computer_agent import __version__
 from computer_agent.browser import BROWSER
 from computer_agent.chat import run_chat
 from computer_agent.config import load_settings, save_api_key
@@ -44,6 +45,10 @@ def main() -> None:
     # Groq may return Unicode that the older Windows console encoding cannot print.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    if "--version" in sys.argv[1:]:
+        print(f"Interly {__version__}")
+        return
 
     settings = load_settings()
     if not settings.groq_api_key:

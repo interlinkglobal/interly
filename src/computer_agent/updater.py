@@ -1,13 +1,15 @@
-"""Repository-aware self-update support for pipx installations."""
+"""Self-update support for standalone and pipx installations."""
 
 import json
 import shutil
 import subprocess
+import sys
 from importlib.metadata import PackageNotFoundError, distribution
 
 import httpx
 
 PACKAGE_NAME = "interly"
+WINGET_PACKAGE_ID = "InterlinkGlobal.Interly"
 UPDATE_BRANCH = "agent/next-ten-roadmap"
 UPDATE_REF_URL = (
     "https://api.github.com/repos/interlinkglobal/Interly/git/ref/heads/"
@@ -46,7 +48,10 @@ def repository_commit() -> str:
 
 
 def update_interly() -> str:
-    """Check the repository and upgrade the pipx installation when needed."""
+    """Upgrade through WinGet when frozen, otherwise update the pipx installation."""
+    if getattr(sys, "frozen", False):
+        return update_standalone()
+
     try:
         current = installed_commit()
         latest = repository_commit()
@@ -79,4 +84,42 @@ def update_interly() -> str:
     return (
         f"Interly updated from {previous} to {latest[:8]}.\n"
         "Type exit, then run interlink again to use the new version."
+    )
+
+
+def update_standalone() -> str:
+    """Ask WinGet to upgrade an installed standalone Interly package."""
+    winget = shutil.which("winget")
+    if not winget:
+        return (
+            "Update unavailable: Windows Package Manager was not found. "
+            "The current installation was not changed."
+        )
+    try:
+        completed = subprocess.run(
+            [
+                winget,
+                "upgrade",
+                "--id",
+                WINGET_PACKAGE_ID,
+                "--exact",
+                "--accept-package-agreements",
+                "--accept-source-agreements",
+                "--disable-interactivity",
+            ],
+            capture_output=True,
+            text=True,
+            errors="replace",
+            timeout=300,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return f"Update failed safely: {error}"
+
+    output = (completed.stdout or completed.stderr).strip()
+    if completed.returncode != 0:
+        return f"WinGet could not update Interly; nothing was removed.\n{output}"
+    return (
+        f"WinGet finished checking Interly.\n{output}\n"
+        "Type exit, then run interlink again to use an installed update."
     )
