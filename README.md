@@ -6,22 +6,17 @@ wait for approval before executing it.
 
 Development follows the checked 100-item plan in [ROADMAP.md](ROADMAP.md).
 
-## Install with pipx
+## Install on Windows
 
-Install [Python 3.11 or newer](https://www.python.org/downloads/) and
-[pipx](https://pipx.pypa.io/stable/installation/), then run:
+Open Command Prompt or PowerShell and run this one command:
 
-```powershell
-py -m pip install --user pipx
-py -m pipx ensurepath
+```cmd
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm 'https://raw.githubusercontent.com/interlinkglobal/Interly/agent/next-ten-roadmap/install.ps1' | iex"
 ```
 
-Open a new PowerShell window, then run:
-
-```powershell
-pipx install git+https://github.com/interlinkglobal/Interly.git
-interlink
-```
+The installer detects suitable Python and Git installations, installs either when necessary,
+installs and configures pipx, installs Interly, verifies the command, and launches it. Node.js is
+not required. Run the installer once; use Interly's built-in `update` command afterward.
 
 On first launch, Interly asks for a [Groq API key](https://console.groq.com/keys). Input is
 hidden, validated before saving, and stored under the current Windows user's application-data
