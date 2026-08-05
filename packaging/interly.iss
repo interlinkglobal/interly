@@ -1,10 +1,10 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.5.0"
+  #define MyAppVersion "0.5.1"
 #endif
 
 #define MyAppName "Interly"
 #define MyAppPublisher "Interlink Global Technologies"
-#define MyAppExeName "interlink.exe"
+#define MyAppExeName "interly.exe"
 
 [Setup]
 AppId={{6CB4E41F-F5A4-4F9D-B05F-C0565EBD99E7}
@@ -27,6 +27,7 @@ ChangesEnvironment=yes
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Files]
+Source: "..\dist\interly.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\interlink.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
