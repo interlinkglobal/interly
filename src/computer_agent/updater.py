@@ -1,12 +1,17 @@
 """Self-update support for standalone and pipx installations."""
 
+import hashlib
 import json
 import shutil
 import subprocess
 import sys
+import tempfile
 from importlib.metadata import PackageNotFoundError, distribution
+from pathlib import Path
 
 import httpx
+
+from computer_agent import __version__
 
 PACKAGE_NAME = "interly"
 WINGET_PACKAGE_ID = "InterlinkGlobal.Interly"
@@ -15,6 +20,9 @@ UPDATE_REF_URL = (
     "https://api.github.com/repos/interlinkglobal/Interly/git/ref/heads/"
     f"{UPDATE_BRANCH}"
 )
+LATEST_RELEASE_URL = "https://api.github.com/repos/interlinkglobal/Interly/releases/latest"
+INSTALLER_NAME = "InterlySetup-x64.exe"
+MAX_INSTALLER_BYTES = 200 * 1024 * 1024
 
 
 def installed_commit() -> str | None:
@@ -88,38 +96,113 @@ def update_interly() -> str:
 
 
 def update_standalone() -> str:
-    """Ask WinGet to upgrade an installed standalone Interly package."""
+    """Try WinGet, then use a verified GitHub Release installer as fallback."""
     winget = shutil.which("winget")
-    if not winget:
-        return (
-            "Update unavailable: Windows Package Manager was not found. "
-            "The current installation was not changed."
-        )
-    try:
-        completed = subprocess.run(
-            [
-                winget,
-                "upgrade",
-                "--id",
-                WINGET_PACKAGE_ID,
-                "--exact",
-                "--accept-package-agreements",
-                "--accept-source-agreements",
-                "--disable-interactivity",
-            ],
-            capture_output=True,
-            text=True,
-            errors="replace",
-            timeout=300,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        return f"Update failed safely: {error}"
+    if winget:
+        try:
+            completed = subprocess.run(
+                [
+                    winget,
+                    "upgrade",
+                    "--id",
+                    WINGET_PACKAGE_ID,
+                    "--exact",
+                    "--accept-package-agreements",
+                    "--accept-source-agreements",
+                    "--disable-interactivity",
+                ],
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=300,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            completed = None
+        if completed is not None and completed.returncode == 0:
+            output = (completed.stdout or completed.stderr).strip()
+            return (
+                f"WinGet finished checking Interly.\n{output}\n"
+                "Type exit, then run interly again to use an installed update."
+            )
 
-    output = (completed.stdout or completed.stderr).strip()
-    if completed.returncode != 0:
-        return f"WinGet could not update Interly; nothing was removed.\n{output}"
+    try:
+        version, installer_url, expected_digest = latest_release_installer()
+        if version == __version__:
+            return f"Interly is already current ({version})."
+        installer = download_release_installer(installer_url, expected_digest)
+        subprocess.Popen(
+            [str(installer), "/SILENT", "/NORESTART", "/CLOSEAPPLICATIONS"],
+            close_fds=True,
+        )
+    except (httpx.HTTPError, OSError, RuntimeError, subprocess.SubprocessError) as error:
+        return f"Update failed safely; the current installation was kept: {error}"
     return (
-        f"WinGet finished checking Interly.\n{output}\n"
-        "Type exit, then run interlink again to use an installed update."
+        f"Interly {version} was downloaded, verified, and its installer was started. "
+        "Finish the installer, type exit, then run interly again."
     )
+
+
+def latest_release_installer() -> tuple[str, str, str]:
+    """Return the latest release version, installer URL, and GitHub SHA-256 digest."""
+    response = httpx.get(
+        LATEST_RELEASE_URL,
+        headers={"Accept": "application/vnd.github+json", "User-Agent": "Interly updater"},
+        timeout=15.0,
+    )
+    response.raise_for_status()
+    release = response.json()
+    version = str(release.get("tag_name", "")).removeprefix("v")
+    if not version:
+        raise RuntimeError("GitHub returned no release version.")
+    asset = next(
+        (item for item in release.get("assets", []) if item.get("name") == INSTALLER_NAME),
+        None,
+    )
+    if not asset:
+        raise RuntimeError("The latest release has no Windows installer.")
+    url = str(asset.get("browser_download_url", ""))
+    digest = str(asset.get("digest", ""))
+    expected_prefix = "https://github.com/interlinkglobal/Interly/releases/download/"
+    if not url.startswith(expected_prefix) or not digest.startswith("sha256:"):
+        raise RuntimeError("The release installer could not be verified.")
+    return version, url, digest.removeprefix("sha256:").casefold()
+
+
+def download_release_installer(url: str, expected_digest: str) -> Path:
+    """Download a bounded installer to a temporary file and verify its SHA-256 digest."""
+    destination = Path(tempfile.gettempdir()) / "InterlySetup-update-x64.exe"
+    temporary = destination.with_suffix(".download")
+    digest = hashlib.sha256()
+    size = 0
+    try:
+        with temporary.open("wb") as output, httpx.stream(
+            "GET",
+            url,
+            headers={"User-Agent": "Interly updater"},
+            follow_redirects=True,
+            timeout=60.0,
+        ) as response:
+            response.raise_for_status()
+            for chunk in response.iter_bytes():
+                size += len(chunk)
+                if size > MAX_INSTALLER_BYTES:
+                    raise RuntimeError("The release installer exceeded the size limit.")
+                digest.update(chunk)
+                output.write(chunk)
+        if digest.hexdigest() != expected_digest:
+            raise RuntimeError("The release installer failed SHA-256 verification.")
+        temporary.replace(destination)
+        return destination
+    except (httpx.HTTPError, OSError, RuntimeError):
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def digest_file(path: Path) -> str:
+    """Return a file's lowercase SHA-256 digest."""
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
