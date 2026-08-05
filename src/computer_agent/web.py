@@ -1,8 +1,10 @@
 """Permission-gated public web access with local-network protections."""
 
+import hashlib
 import ipaddress
 import json
 import socket
+from pathlib import Path
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 
 import httpx
@@ -12,6 +14,7 @@ USER_AGENT = "Interlink/0.1 (+local personal assistant)"
 MAX_DOWNLOAD_BYTES = 2_000_000
 MAX_PAGE_TEXT = 25_000
 MAX_REDIRECTS = 5
+MAX_FILE_DOWNLOAD_BYTES = 1_000_000_000
 
 
 class WebAccessError(RuntimeError):
@@ -74,6 +77,66 @@ def download_public_text(url: str) -> tuple[str, str, str]:
     raise WebAccessError("Website exceeded the redirect limit.")
 
 
+def download_public_file(url: str, destination: str) -> str:
+    """Stream one direct public file URL to an explicit path without overwriting."""
+    target = Path(destination).expanduser().resolve()
+    if target.exists():
+        return f"Destination already exists; nothing was downloaded: {target}"
+    if not target.name:
+        return "A destination filename is required."
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.interly-download")
+    if temporary.exists():
+        return f"Temporary download already exists; remove it before retrying: {temporary}"
+
+    current_url = url
+    headers = {"User-Agent": USER_AGENT, "Accept": "*/*"}
+    try:
+        with httpx.Client(follow_redirects=False, timeout=30.0, headers=headers) as client:
+            for _redirect in range(MAX_REDIRECTS + 1):
+                validate_public_url(current_url)
+                with client.stream("GET", current_url) as response:
+                    if response.is_redirect:
+                        location = response.headers.get("location")
+                        if not location:
+                            raise WebAccessError("Server returned an invalid redirect.")
+                        current_url = str(response.url.join(location))
+                        continue
+
+                    response.raise_for_status()
+                    content_type = response.headers.get("content-type", "").split(";", 1)[0]
+                    if content_type.casefold() in {"text/html", "application/xhtml+xml"}:
+                        raise WebAccessError(
+                            "The URL returned a webpage, not a direct file. Use the exposed file URL."
+                        )
+                    content_length = response.headers.get("content-length")
+                    if content_length and int(content_length) > MAX_FILE_DOWNLOAD_BYTES:
+                        raise WebAccessError("File exceeds Interly's 1 GB download limit.")
+
+                    digest = hashlib.sha256()
+                    downloaded = 0
+                    with temporary.open("xb") as output:
+                        for chunk in response.iter_bytes():
+                            downloaded += len(chunk)
+                            if downloaded > MAX_FILE_DOWNLOAD_BYTES:
+                                raise WebAccessError("File exceeds Interly's 1 GB download limit.")
+                            digest.update(chunk)
+                            output.write(chunk)
+                    temporary.replace(target)
+                    return (
+                        f"Downloaded file to {target}\n"
+                        f"Final URL: {response.url}\n"
+                        f"Content type: {content_type or 'unknown'}\n"
+                        f"Bytes: {downloaded}\n"
+                        f"SHA-256: {digest.hexdigest()}"
+                    )
+            raise WebAccessError("File URL exceeded the redirect limit.")
+    except (httpx.HTTPError, OSError, ValueError, WebAccessError) as error:
+        temporary.unlink(missing_ok=True)
+        return f"Download failed safely: {error}"
+
+
 def search_web(query: str) -> str:
     """Search the public web through DuckDuckGo's lightweight HTML endpoint."""
     search_url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
@@ -126,3 +189,45 @@ def read_webpage(url: str) -> str:
     if len(text) > MAX_PAGE_TEXT:
         text = text[:MAX_PAGE_TEXT] + "\n[Page text truncated by Interlink]"
     return f"Final URL: {final_url}\nTitle: {title}\n\n{text}"
+
+
+def research_web(query: str) -> str:
+    """Run two searches, deduplicate URLs, and rank sources with transparent heuristics."""
+    variants = [query, f"{query} official reliable sources"]
+    collected: dict[str, dict[str, object]] = {}
+    for variant in variants:
+        raw_results = search_web(variant)
+        try:
+            results = json.loads(raw_results)
+        except json.JSONDecodeError:
+            continue
+        for result in results:
+            url = str(result.get("url", ""))
+            parsed = urlparse(url)
+            canonical = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/").casefold()
+            if not canonical:
+                continue
+            host = (parsed.hostname or "").casefold()
+            score = 50
+            reasons: list[str] = []
+            if parsed.scheme == "https":
+                score += 5
+                reasons.append("HTTPS")
+            if host.endswith((".gov", ".gov.za", ".edu", ".ac.za")):
+                score += 25
+                reasons.append("government or academic domain")
+            if any(marker in host for marker in ("wikipedia.org", "reuters.com", "apnews.com")):
+                score += 10
+                reasons.append("established reference or news domain")
+            collected.setdefault(
+                canonical,
+                {
+                    **result,
+                    "quality_score": min(score, 100),
+                    "quality_reasons": reasons or ["general public source"],
+                },
+            )
+    ranked = sorted(collected.values(), key=lambda item: int(item["quality_score"]), reverse=True)
+    if not ranked:
+        return "Multi-source research found no usable results."
+    return json.dumps(ranked[:12], indent=2, ensure_ascii=False)

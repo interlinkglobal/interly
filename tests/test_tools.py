@@ -1,12 +1,16 @@
 from unittest.mock import patch
 
 from computer_agent.tools import (
+    TOOL_SCHEMAS,
+    LocalOnlyResult,
     close_or_kill_process,
     describe_tool,
+    execute_tool,
     find_applications,
     find_processes,
     get_current_time,
     open_application,
+    open_executable_command,
     run_read_command,
 )
 
@@ -51,6 +55,36 @@ def test_invented_application_id_is_rejected(get_apps: object, popen: object) ->
 
     assert "nothing was opened" in result
     popen.assert_not_called()
+
+
+@patch("computer_agent.tools.subprocess.Popen")
+@patch("computer_agent.tools.resolve_executable_command")
+def test_explicit_executable_command_is_resolved_before_launch(resolve: object, popen: object) -> None:
+    resolve.return_value = [r"C:\Program Files\Google\Chrome\Application\chrome.exe"]
+
+    result = open_executable_command("chrome.exe")
+
+    assert "Opened executable" in result
+    resolve.assert_called_once_with("chrome.exe")
+    popen.assert_called_once_with(
+        [r"C:\Program Files\Google\Chrome\Application\chrome.exe"]
+    )
+
+
+@patch("computer_agent.tools.subprocess.Popen")
+def test_executable_command_rejects_shell_syntax(popen: object) -> None:
+    result = open_executable_command("chrome & calc")
+
+    assert "nothing was opened" in result
+    popen.assert_not_called()
+
+
+def test_executable_command_schema_accepts_one_token_only() -> None:
+    schema = next(
+        tool for tool in TOOL_SCHEMAS if tool["function"]["name"] == "open_executable_command"
+    )
+
+    assert schema["function"]["parameters"]["required"] == ["command_name"]
 
 
 @patch("computer_agent.tools.get_running_processes")
@@ -121,3 +155,61 @@ def test_unlisted_read_command_never_reaches_windows(run: object) -> None:
 
     assert "not allowed" in result
     run.assert_not_called()
+
+
+@patch("computer_agent.tools.run_read_command", return_value="private output")
+def test_read_command_execution_returns_local_only_result(_read: object) -> None:
+    result = execute_tool("run_read_command", '{"command":"ipconfig"}')
+
+    assert isinstance(result, LocalOnlyResult)
+    assert result.terminal_output == "private output"
+    assert "private output" not in result.model_status
+
+
+def test_browser_read_tool_requires_explicit_valid_json_argument() -> None:
+    schema = next(
+        tool for tool in TOOL_SCHEMAS if tool["function"]["name"] == "browser_read_page"
+    )
+
+    assert schema["function"]["parameters"]["required"] == ["mode"]
+
+
+def test_browser_click_requires_control_preview() -> None:
+    schema = next(
+        tool for tool in TOOL_SCHEMAS if tool["function"]["name"] == "browser_click_control"
+    )
+
+    assert schema["function"]["parameters"]["required"] == [
+        "control_id",
+        "control_description",
+    ]
+
+
+def test_download_tool_requires_url_and_exact_destination() -> None:
+    schema = next(
+        tool for tool in TOOL_SCHEMAS if tool["function"]["name"] == "download_public_file"
+    )
+
+    assert schema["function"]["parameters"]["required"] == ["url", "destination"]
+
+
+@patch("computer_agent.tools.download_public_file", return_value="downloaded")
+def test_download_tool_executes_only_after_dispatch(download: object) -> None:
+    result = execute_tool(
+        "download_public_file",
+        '{"url":"https://example.com/video.mp4","destination":"C:/Downloads/video.mp4"}',
+    )
+
+    assert result == "downloaded"
+    download.assert_called_once_with(
+        "https://example.com/video.mp4", "C:/Downloads/video.mp4"
+    )
+
+
+@patch("computer_agent.tools.read_text_file", return_value="private file data")
+def test_file_read_is_local_only_by_default(_read: object) -> None:
+    result = execute_tool("read_text_file", '{"path":"C:/private.txt"}')
+
+    assert isinstance(result, LocalOnlyResult)
+    assert result.terminal_output == "private file data"
+    assert "private file data" not in result.model_status

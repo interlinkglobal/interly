@@ -1,0 +1,83 @@
+name: Windows distribution
+
+on:
+  pull_request:
+  push:
+    branches:
+      - agent/next-ten-roadmap
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install build dependencies
+        run: python -m pip install ".[dev,distribution]"
+
+      - name: Test
+        env:
+          PYNPUT_BACKEND: dummy
+        run: |
+          python -m pytest -p no:cacheprovider
+          python -m ruff check src tests packaging
+
+      - name: Build standalone executable
+        working-directory: packaging
+        run: pyinstaller --clean --noconfirm --distpath ../dist --workpath ../build interlink.spec
+
+      - name: Smoke test executable
+        shell: pwsh
+        run: |
+          $version = & .\dist\interlink.exe --version
+          if ($LASTEXITCODE -ne 0 -or $version -ne "Interly 0.5.0") {
+            throw "Standalone executable smoke test failed: $version"
+          }
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress --yes
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=0.5.0" packaging\interly.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed." }
+
+      - name: Generate WinGet manifests
+        shell: pwsh
+        run: |
+          $sha = (Get-FileHash .\dist\InterlySetup-x64.exe -Algorithm SHA256).Hash
+          $url = "https://github.com/interlinkglobal/Interly/releases/download/v0.5.0/InterlySetup-x64.exe"
+          python packaging\render_winget.py --version 0.5.0 --installer-url $url --sha256 $sha --output dist\winget
+          Compress-Archive -Path dist\winget\* -DestinationPath dist\Interly-0.5.0-winget-manifests.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Interly-Windows-x64
+          path: |
+            dist/interlink.exe
+            dist/InterlySetup-x64.exe
+            dist/Interly-0.5.0-winget-manifests.zip
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/interlink.exe
+            dist/InterlySetup-x64.exe
+            dist/Interly-0.5.0-winget-manifests.zip

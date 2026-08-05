@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from computer_agent.chat import run_chat
 from computer_agent.models import GroqModel, ModelTurn, OfflineModel, ToolRequest
+from computer_agent.tools import LocalOnlyResult
 
 
 def test_offline_model_can_see_conversation_history() -> None:
@@ -33,6 +34,23 @@ def test_chat_ignores_empty_input_and_stops_on_exit() -> None:
     assert [message["role"] for message in history] == ["user", "assistant"]
     assert history[0]["content"] == "Hello"
     assert output[-1] == "Goodbye!"
+
+
+def test_update_command_bypasses_model_and_runs_updater() -> None:
+    answers = iter(["update", "exit"])
+    output: list[str] = []
+    model = OfflineModel()
+
+    history = run_chat(
+        model=model,
+        read_input=lambda _prompt: next(answers),
+        write_output=output.append,
+        update_interly=lambda: "Interly is already current.",
+    )
+
+    assert history == []
+    assert "Checking the Interly repository for updates..." in output
+    assert "Interly is already current." in output
 
 
 def test_groq_model_returns_text_from_client() -> None:
@@ -127,3 +145,135 @@ def test_web_access_can_be_approved_for_session(execute: object) -> None:
     run_chat(WebModel(), lambda _prompt: next(answers), lambda _text: None)
 
     assert execute.call_count == 2
+
+
+def test_groq_command_reconfigures_locally_without_calling_model() -> None:
+    model = OfflineModel()
+    model.reply = lambda _messages: (_ for _ in ()).throw(AssertionError("model was called"))
+    answers = iter(["groq", "exit"])
+    reconfigured: list[bool] = []
+
+    run_chat(
+        model,
+        lambda _prompt: next(answers),
+        lambda _text: None,
+        reconfigure_groq=lambda: reconfigured.append(True) or True,
+    )
+
+    assert reconfigured == [True]
+
+
+@patch(
+    "computer_agent.chat.execute_tool",
+    return_value=LocalOnlyResult(
+        model_status="Local report completed without sharing data.",
+        terminal_output="PRIVATE-IP-192.0.2.1",
+    ),
+)
+def test_local_only_output_is_printed_but_never_added_to_model_messages(_execute: object) -> None:
+    class PrivacyCheckingModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def reply(self, messages: list[dict[str, object]]) -> ModelTurn:
+            self.calls += 1
+            assert "PRIVATE-IP-192.0.2.1" not in str(messages)
+            if self.calls == 1:
+                request = ToolRequest(
+                    id="private", name="run_read_command", arguments='{"command":"ipconfig"}'
+                )
+                return ModelTurn(
+                    content=None,
+                    tool_requests=[request],
+                    assistant_message={"role": "assistant", "content": None},
+                )
+            return ModelTurn(
+                content="The local result is displayed above.",
+                tool_requests=[],
+                assistant_message={"role": "assistant", "content": "Done"},
+            )
+
+    output: list[str] = []
+    answers = iter(["Show IP information", "y", "exit"])
+    history = run_chat(
+        PrivacyCheckingModel(),
+        lambda _prompt: next(answers),
+        output.append,
+    )
+
+    assert any("PRIVATE-IP-192.0.2.1" in line for line in output)
+    assert "PRIVATE-IP-192.0.2.1" not in str(history)
+
+
+@patch(
+    "computer_agent.chat.execute_tool",
+    return_value=LocalOnlyResult(
+        model_status="Local report completed.",
+        terminal_output="AUTHORIZED-SYSTEM-DATA",
+    ),
+)
+def test_sensitive_a_approval_explicitly_shares_output_with_model(_execute: object) -> None:
+    class AccessCheckingModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def reply(self, messages: list[dict[str, object]]) -> ModelTurn:
+            self.calls += 1
+            if self.calls == 1:
+                request = ToolRequest(
+                    id="private", name="read_system_metrics", arguments="{}"
+                )
+                return ModelTurn(
+                    content=None,
+                    tool_requests=[request],
+                    assistant_message={"role": "assistant", "content": None},
+                )
+            assert "AUTHORIZED-SYSTEM-DATA" in str(messages)
+            return ModelTurn(
+                content="Authorized data processed.",
+                tool_requests=[],
+                assistant_message={"role": "assistant", "content": "Done"},
+            )
+
+    answers = iter(["Show metrics", "a", "exit"])
+    history = run_chat(
+        AccessCheckingModel(),
+        lambda _prompt: next(answers),
+        lambda _text: None,
+    )
+
+    assert "AUTHORIZED-SYSTEM-DATA" in str(history)
+
+
+@patch("computer_agent.chat.BROWSER.close")
+@patch("computer_agent.chat.execute_tool", return_value="Browser opened")
+def test_isolated_browser_closes_after_browser_assisted_request(
+    _execute: object, close_browser: object
+) -> None:
+    class BrowserModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def reply(self, _messages: list[dict[str, object]]) -> ModelTurn:
+            self.calls += 1
+            if self.calls == 1:
+                request = ToolRequest(
+                    id="browser",
+                    name="browser_open_url",
+                    arguments='{"url":"https://example.com"}',
+                )
+                return ModelTurn(
+                    content=None,
+                    tool_requests=[request],
+                    assistant_message={"role": "assistant", "content": None},
+                )
+            return ModelTurn(
+                content="I read the page.",
+                tool_requests=[],
+                assistant_message={"role": "assistant", "content": "I read the page."},
+            )
+
+    answers = iter(["Open the page", "y", "exit"])
+    run_chat(BrowserModel(), lambda _prompt: next(answers), lambda _text: None)
+
+    close_browser.assert_called_once_with()
