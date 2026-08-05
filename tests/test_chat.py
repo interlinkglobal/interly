@@ -36,6 +36,23 @@ def test_chat_ignores_empty_input_and_stops_on_exit() -> None:
     assert output[-1] == "Goodbye!"
 
 
+def test_update_command_bypasses_model_and_runs_updater() -> None:
+    answers = iter(["update", "exit"])
+    output: list[str] = []
+    model = OfflineModel()
+
+    history = run_chat(
+        model=model,
+        read_input=lambda _prompt: next(answers),
+        write_output=output.append,
+        update_interly=lambda: "Interly is already current.",
+    )
+
+    assert history == []
+    assert "Checking the Interly repository for updates..." in output
+    assert "Interly is already current." in output
+
+
 def test_groq_model_returns_text_from_client() -> None:
     response = SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content="Hello from Groq"))]
