@@ -105,6 +105,89 @@ def test_tool_requires_explicit_approval() -> None:
     assert "denied" in str(tool_message["content"])
 
 
+@patch("computer_agent.chat.execute_tool", return_value="done")
+@patch("computer_agent.chat.monotonic", return_value=100.0)
+def test_set_free_temporarily_skips_approval_prompts(
+    _monotonic: object, execute: object
+) -> None:
+    class ToolCallingModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def reply(self, _messages: list[dict[str, object]]) -> ModelTurn:
+            self.calls += 1
+            if self.calls == 1:
+                request = ToolRequest(id="call-1", name="get_current_time", arguments="{}")
+                return ModelTurn(
+                    content=None,
+                    tool_requests=[request],
+                    assistant_message={"role": "assistant", "content": None},
+                )
+            return ModelTurn(
+                content="Finished",
+                tool_requests=[],
+                assistant_message={"role": "assistant", "content": "Finished"},
+            )
+
+    prompts: list[str] = []
+    answers = iter(["set-free 5", "What time is it?", "exit"])
+
+    run_chat(
+        ToolCallingModel(),
+        lambda prompt: prompts.append(prompt) or next(answers),
+        lambda _text: None,
+    )
+
+    assert execute.call_count == 1
+    assert not any(prompt.startswith("Allow?") for prompt in prompts)
+
+
+@patch("computer_agent.chat.execute_tool")
+def test_set_free_zero_restores_approval_prompts(execute: object) -> None:
+    class ToolCallingModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def reply(self, _messages: list[dict[str, object]]) -> ModelTurn:
+            self.calls += 1
+            if self.calls == 1:
+                request = ToolRequest(id="call-1", name="get_current_time", arguments="{}")
+                return ModelTurn(
+                    content=None,
+                    tool_requests=[request],
+                    assistant_message={"role": "assistant", "content": None},
+                )
+            return ModelTurn(
+                content="Finished",
+                tool_requests=[],
+                assistant_message={"role": "assistant", "content": "Finished"},
+            )
+
+    answers = iter(["set-free 5", "set-free 0", "What time is it?", "n", "exit"])
+    history = run_chat(
+        ToolCallingModel(),
+        lambda _prompt: next(answers),
+        lambda _text: None,
+    )
+
+    assert execute.call_count == 0
+    tool_message = next(message for message in history if message["role"] == "tool")
+    assert "denied" in str(tool_message["content"])
+
+
+def test_set_free_rejects_values_above_thirty_minutes() -> None:
+    output: list[str] = []
+    answers = iter(["set-free 31", "exit"])
+
+    run_chat(
+        OfflineModel(),
+        lambda _prompt: next(answers),
+        output.append,
+    )
+
+    assert "Usage: set-free <1-30 whole minutes>, or set-free 0 to disable." in output
+
+
 @patch("computer_agent.chat.execute_tool", return_value="safe web result")
 def test_web_access_can_be_approved_for_session(execute: object) -> None:
     class WebModel:
