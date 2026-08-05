@@ -14,6 +14,7 @@ from computer_agent.tools import LocalOnlyResult, describe_tool, execute_tool
 ReadInput = Callable[[str], str]
 WriteOutput = Callable[[str], None]
 ReconfigureGroq = Callable[[], bool]
+UpdateInterly = Callable[[], str]
 EXIT_COMMANDS = {"exit", "quit", "/exit"}
 SESSION_APPROVAL_GROUPS = {
     "search_web": "direct web access",
@@ -48,6 +49,7 @@ def run_chat(
     write_output: WriteOutput = print,
     emergency_stop: EmergencyStop | None = None,
     reconfigure_groq: ReconfigureGroq | None = None,
+    update_interly: UpdateInterly | None = None,
 ) -> list[dict[str, Any]]:
     """Chat until the user exits, then return the conversation history."""
     messages: list[dict[str, Any]] = []
@@ -76,6 +78,14 @@ def run_chat(
                 write_output("Groq API key replaced. The current Interlink session is ready.")
             else:
                 write_output("Groq API key was not changed.")
+            continue
+
+        if user_text.casefold() == "update":
+            if update_interly is None:
+                write_output("Interly updates are unavailable in this mode.")
+            else:
+                write_output("Checking the Interly repository for updates...")
+                write_output(update_interly())
             continue
 
         if user_text.casefold().startswith(f"{SET_FREE_COMMAND} "):
