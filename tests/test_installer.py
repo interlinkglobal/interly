@@ -14,7 +14,7 @@ def test_windows_installer_bootstraps_required_components() -> None:
     assert "-m pipx ensurepath" in script
     assert "-m pipx install --force $InterlySpec" in script
     assert "agent/next-ten-roadmap" in script
-    assert "& $interlinkPath" in script
+    assert "& $interlyPath" in script
 
 
 def test_readme_exposes_one_cmd_compatible_install_command() -> None:
