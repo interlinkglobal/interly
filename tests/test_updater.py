@@ -1,8 +1,15 @@
+import hashlib
 import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from computer_agent.updater import installed_commit, update_interly, update_standalone
+from computer_agent.updater import (
+    digest_file,
+    installed_commit,
+    latest_release_installer,
+    update_interly,
+    update_standalone,
+)
 
 
 @patch("computer_agent.updater.distribution")
@@ -73,3 +80,68 @@ def test_standalone_update_uses_winget(run: object, _which: object) -> None:
         timeout=300,
         check=False,
     )
+
+
+@patch("computer_agent.updater.subprocess.Popen")
+@patch("computer_agent.updater.download_release_installer")
+@patch("computer_agent.updater.latest_release_installer")
+@patch("computer_agent.updater.shutil.which", return_value="C:/Windows/winget.exe")
+@patch("computer_agent.updater.subprocess.run")
+def test_standalone_falls_back_to_verified_release_when_winget_cannot_find_package(
+    run: object,
+    _which: object,
+    release: object,
+    download: object,
+    popen: object,
+) -> None:
+    run.return_value = SimpleNamespace(returncode=1, stdout="", stderr="No package found")
+    release.return_value = (
+        "0.5.2",
+        "https://github.com/interlinkglobal/Interly/releases/download/v0.5.2/InterlySetup-x64.exe",
+        "ab" * 32,
+    )
+    download.return_value = "C:/Temp/InterlySetup-update-x64.exe"
+
+    result = update_standalone()
+
+    assert "downloaded, verified" in result
+    download.assert_called_once()
+    popen.assert_called_once_with(
+        [
+            "C:/Temp/InterlySetup-update-x64.exe",
+            "/SILENT",
+            "/NORESTART",
+            "/CLOSEAPPLICATIONS",
+        ],
+        close_fds=True,
+    )
+
+
+@patch("computer_agent.updater.httpx.get")
+def test_latest_release_requires_official_installer_and_sha256(get: object) -> None:
+    get.return_value.json.return_value = {
+        "tag_name": "v0.5.1",
+        "assets": [
+            {
+                "name": "InterlySetup-x64.exe",
+                "browser_download_url": (
+                    "https://github.com/interlinkglobal/Interly/releases/download/"
+                    "v0.5.1/InterlySetup-x64.exe"
+                ),
+                "digest": f"sha256:{'ab' * 32}",
+            }
+        ],
+    }
+
+    assert latest_release_installer() == (
+        "0.5.1",
+        "https://github.com/interlinkglobal/Interly/releases/download/v0.5.1/InterlySetup-x64.exe",
+        "ab" * 32,
+    )
+
+
+def test_digest_file_returns_sha256(tmp_path: object) -> None:
+    path = tmp_path / "installer.exe"
+    path.write_bytes(b"verified installer")
+
+    assert digest_file(path) == hashlib.sha256(b"verified installer").hexdigest()
