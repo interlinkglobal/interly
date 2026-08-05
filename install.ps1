@@ -198,21 +198,21 @@ if ($LASTEXITCODE -ne 0) {
     throw "Interly installation failed."
 }
 
-$interlinkPath = $null
-$interlink = Get-Command interlink -ErrorAction SilentlyContinue
-if (-not $interlink) {
+$interlyPath = $null
+$interly = Get-Command interly -ErrorAction SilentlyContinue
+if (-not $interly) {
     $pipxBin = & $pythonCommand @pythonArguments -m pipx environment --value PIPX_BIN_DIR
-    $candidate = Join-Path $pipxBin.Trim() "interlink.exe"
+    $candidate = Join-Path $pipxBin.Trim() "interly.exe"
     if (Test-Path $candidate) {
-        $interlinkPath = $candidate
+        $interlyPath = $candidate
     }
 }
 else {
-    $interlinkPath = $interlink.Source
+    $interlyPath = $interly.Source
 }
-if (-not $interlinkPath) {
-    throw "Interly installed, but interlink.exe could not be found. Open a new terminal and run interlink."
+if (-not $interlyPath) {
+    throw "Interly installed, but interly.exe could not be found. Open a new terminal and run interly."
 }
 
 Write-Step "Installation verified. Launching Interly"
-& $interlinkPath
+& $interlyPath
