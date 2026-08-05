@@ -1,6 +1,7 @@
 """The Stage 1 terminal conversation loop."""
 
 from collections.abc import Callable
+from time import monotonic
 from typing import Any
 
 from playwright.sync_api import Error as PlaywrightError
@@ -13,7 +14,6 @@ from computer_agent.tools import LocalOnlyResult, describe_tool, execute_tool
 ReadInput = Callable[[str], str]
 WriteOutput = Callable[[str], None]
 ReconfigureGroq = Callable[[], bool]
-UpdateInterly = Callable[[], str]
 EXIT_COMMANDS = {"exit", "quit", "/exit"}
 SESSION_APPROVAL_GROUPS = {
     "search_web": "direct web access",
@@ -38,6 +38,8 @@ PER_MESSAGE_TOOL_LIMITS = {
     "browser_read_page": 5,
 }
 MAX_MODEL_ROUNDS_PER_MESSAGE = 12
+SET_FREE_COMMAND = "set-free"
+MAX_SET_FREE_MINUTES = 30
 
 
 def run_chat(
@@ -46,11 +48,11 @@ def run_chat(
     write_output: WriteOutput = print,
     emergency_stop: EmergencyStop | None = None,
     reconfigure_groq: ReconfigureGroq | None = None,
-    update_interly: UpdateInterly | None = None,
 ) -> list[dict[str, Any]]:
     """Chat until the user exits, then return the conversation history."""
     messages: list[dict[str, Any]] = []
     session_approvals: set[str] = set()
+    free_until: float | None = None
     write_output("Interlink is ready. Type 'exit' to stop.")
 
     while True:
@@ -76,12 +78,24 @@ def run_chat(
                 write_output("Groq API key was not changed.")
             continue
 
-        if user_text.casefold() == "update":
-            if update_interly is None:
-                write_output("Interly updates are unavailable in this mode.")
+        if user_text.casefold().startswith(f"{SET_FREE_COMMAND} "):
+            value = user_text[len(SET_FREE_COMMAND) :].strip()
+            try:
+                minutes = int(value)
+                if minutes < 0 or minutes > MAX_SET_FREE_MINUTES:
+                    raise ValueError
+            except ValueError:
+                write_output("Usage: set-free <1-30 whole minutes>, or set-free 0 to disable.")
+                continue
+            if minutes == 0:
+                free_until = None
+                write_output("Automatic command approval disabled.")
             else:
-                write_output("Checking the Interly repository for updates...")
-                write_output(update_interly())
+                free_until = monotonic() + minutes * 60
+                write_output(
+                    f"Automatic command approval enabled for {minutes} minute"
+                    f"{'s' if minutes != 1 else ''}. Emergency stop remains active."
+                )
             continue
 
         if not user_text:
@@ -144,7 +158,11 @@ def run_chat(
                 if warning:
                     write_output(warning)
                 approval_group = SESSION_APPROVAL_GROUPS.get(request.name)
-                if approval_group in session_approvals:
+                free_active = free_until is not None and monotonic() < free_until
+                if free_until is not None and not free_active:
+                    free_until = None
+                    write_output("Automatic command approval period ended; prompts restored.")
+                if free_active or approval_group in session_approvals:
                     approved = True
                 else:
                     if request.name in SENSITIVE_LOCAL_TOOLS:
