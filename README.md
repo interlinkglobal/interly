@@ -18,7 +18,7 @@ winget install --id InterlinkGlobal.Interly --exact
 Then launch Interly from any Command Prompt:
 
 ```cmd
-interlink
+interly
 ```
 
 The WinGet package contains a standalone Windows executable and does not require Python, pipx,
@@ -48,9 +48,9 @@ Upgrade later with:
 update
 ```
 
-Run `update` at any Interly `You:` prompt. Interly compares the installed Git commit with its
-development branch, upgrades the existing pipx installation only when needed, and asks you to
-restart Interly after a successful update.
+Run `update` at any Interly `You:` prompt. Standalone installations try WinGet first and fall
+back to a SHA-256-verified GitHub Release installer while catalogue publication is pending.
+Development installations upgrade through pipx. Restart Interly after a successful update.
 
 ## Current capabilities
 
