@@ -1,6 +1,6 @@
 [project]
 name = "interly"
-version = "0.5.0"
+version = "0.5.1"
 description = "A permission-aware Windows computer agent powered by Groq"
 readme = "README.md"
 license = "MIT"
@@ -32,6 +32,7 @@ distribution = ["pyinstaller==6.21.0"]
 
 [project.scripts]
 brocode = "computer_agent.__main__:main"
+interly = "computer_agent.__main__:main"
 interlink = "computer_agent.__main__:main"
 
 [project.urls]
