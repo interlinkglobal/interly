@@ -29,8 +29,8 @@ def test_working_groq_key_is_validated_before_save(groq: object, save: object) -
     save.assert_called_once_with("new-key")
 
 
-@patch("computer_agent.__main__.sys.argv", ["interlink", "--version"])
+@patch("computer_agent.__main__.sys.argv", ["interly", "--version"])
 def test_version_flag_exits_before_setup(capsys: object) -> None:
     main()
 
-    assert "Interly 0.5.0" in capsys.readouterr().out
+    assert "Interly 0.5.1" in capsys.readouterr().out
