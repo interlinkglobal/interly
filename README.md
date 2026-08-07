@@ -83,6 +83,9 @@ Development installations upgrade through pipx. Restart Interly after a successf
 - Automatic isolated-browser cleanup after every browser-assisted request
 - Guarded file search, bounded text reads, exact text edits, comparison, creation, copying,
   moving, renaming, and folder creation
+- Read-only structured understanding of PDF, Word (`.docx`), Excel (`.xlsx`/`.xlsm`), and
+  PowerPoint (`.pptx`) documents, including pages or slides, headings/text blocks, tables,
+  spreadsheet sheets/ranges/formulas, speaker notes, and metadata where the format exposes it
 - Approved direct-file downloads with public-URL validation, a 1 GB limit, overwrite protection,
   temporary-file cleanup, final content type, byte count, and SHA-256 reporting
 - Visible top-level Windows window enumeration with exact handles, PIDs, titles, and rectangles
@@ -140,15 +143,29 @@ Sensitive local-read prompts use a different meaning:
 Sensitive `A` approval applies to one command only; it is never remembered for the session.
 
 Raw process lists, application matches, IP and Wi-Fi configuration, users, routes, performance
-metrics, installed-application reports, desktop window listings, OCR results, control inspection,
-and clipboard reads default to local-only output. With `Y`, Interly sends Groq only a short
-completion status. With `A`, the user explicitly authorizes that one output to be included in the
-Groq conversation.
+metrics, installed-application reports, structured document contents, desktop window listings, OCR
+results, control inspection, and clipboard reads default to local-only output. With `Y`, Interly
+sends Groq only a short completion status. With `A`, the user explicitly authorizes that one output
+to be included in the Groq conversation.
 
 `set-free 1` through `set-free 30` temporarily removes repeated prompts for ordinary actions.
 `set-free 0` disables the window immediately. Emergency stop remains active, sensitive local output
 still stays local unless explicitly shared with `A`, and destructive Windows actions still require
 individual confirmation.
+
+## Structured document model
+
+Structured document reads reuse the same permission path as ordinary approved file reads. Interly
+opens supported documents read-only and converts their useful structure into bounded local output.
+PDF reads expose pages, extracted text, heuristic headings, tables, and metadata. Word reads preserve
+ordered headings, paragraphs, and tables. Excel reads expose sheets, used ranges, headers, rows, and
+formula cells. PowerPoint reads expose slides, titles, text blocks, tables, speaker notes, and core
+metadata.
+
+The reader limits input size, Office package entry count and uncompressed size, page/slide/sheet and
+table dimensions, and total extracted text. Corrupt or invalid Office Open XML packages fail without
+being parsed. Document contents remain terminal-only unless the user explicitly chooses `A` at the
+sensitive read approval prompt.
 
 ## Desktop interaction model
 
@@ -173,16 +190,17 @@ other sensitive machine inspection tools.
 
 ## Important limitations
 
-Interly is alpha software. Model responses can be wrong, and read-only system or desktop output may
-contain private information. Review proposed actions. Forced process termination can lose unsaved
-work. Generic mouse and keyboard actions affect the currently visible/focused desktop state. Web
-searches and selected page text are sent to external services and Groq.
+Interly is alpha software. Model responses can be wrong, and read-only system, document, or desktop
+output may contain private information. Review proposed actions. Forced process termination can lose
+unsaved work. Generic mouse and keyboard actions affect the currently visible/focused desktop state.
+Web searches and selected page text are sent to external services and Groq.
 
 Personal-browser access, file deletion, webpage video extraction, streaming-platform downloads,
-structured PDF/Word/Excel/PowerPoint parsing, uploads, logins, purchases, messaging, volume control,
-brightness control, and speech input/output are not implemented. Direct downloads currently require
-a public URL that returns the file itself. The emergency stop prevents additional actions, but an
-operating-system call that has already completed cannot be reversed.
+uploads, logins, purchases, messaging, volume control, brightness control, and speech input/output
+are not implemented. Structured document understanding is read-only and currently supports modern
+Open XML Office formats rather than legacy `.doc`, `.xls`, or `.ppt` files. Direct downloads currently
+require a public URL that returns the file itself. The emergency stop prevents additional actions,
+but an operating-system call that has already completed cannot be reversed.
 
 ## Development
 

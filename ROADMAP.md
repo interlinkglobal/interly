@@ -6,7 +6,7 @@ Status rule:
 - ✅ = the complete item is implemented and verified.
 - ❌ = the item is not fully complete. Partial implementation still counts as ❌.
 
-Current verified status: **88/101 complete**.
+Current verified status: **89/101 complete**.
 
 ## 1. Core agent foundation
 
@@ -94,7 +94,7 @@ Current verified status: **88/101 complete**.
 64. ✅ Preview and apply exact text edits to existing files.
 65. ✅ Create, copy, move, and rename files or folders.
 66. ❌ Add file deletion with Windows Recycle Bin support.
-67. ❌ Add structured PDF, Word, Excel, and PowerPoint understanding.
+67. ✅ Add structured PDF, Word, Excel, and PowerPoint understanding.
 68. ✅ Compare two approved text files and return their differences.
 69. ✅ Download direct public file URLs with type, size, hash, and destination approval.
 70. ❌ Add malware scanning and quarantine checks for downloads.

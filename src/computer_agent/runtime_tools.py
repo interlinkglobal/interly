@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from computer_agent.desktop import (
@@ -16,6 +17,7 @@ from computer_agent.desktop import (
     window_action,
     write_clipboard,
 )
+from computer_agent.documents import SUPPORTED_EXTENSIONS, read_structured_document
 from computer_agent.tools import TOOL_SCHEMAS as BASE_TOOL_SCHEMAS
 from computer_agent.tools import LocalOnlyResult
 from computer_agent.tools import describe_tool as describe_base_tool
@@ -33,7 +35,28 @@ def _function(name: str, description: str, parameters: dict[str, Any]) -> dict[s
     }
 
 
+BASE_RUNTIME_TOOL_SCHEMAS = [
+    schema
+    for schema in BASE_TOOL_SCHEMAS
+    if schema.get("function", {}).get("name") != "read_text_file"
+]
+
 ADDITIONAL_TOOL_SCHEMAS: list[dict[str, Any]] = [
+    _function(
+        "read_text_file",
+        (
+            "Read one approved local file. Plain text and source files use the bounded text reader. "
+            "PDF, Word (.docx), Excel (.xlsx/.xlsm), and PowerPoint (.pptx) files are parsed "
+            "read-only into structured pages/blocks/sheets/slides, headings, tables, formulas, "
+            "and metadata where available."
+        ),
+        {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": ["path"],
+            "additionalProperties": False,
+        },
+    ),
     _function(
         "propose_plan",
         (
@@ -200,7 +223,7 @@ ADDITIONAL_TOOL_SCHEMAS: list[dict[str, Any]] = [
     ),
 ]
 
-TOOL_SCHEMAS = [*BASE_TOOL_SCHEMAS, *ADDITIONAL_TOOL_SCHEMAS]
+TOOL_SCHEMAS = [*BASE_RUNTIME_TOOL_SCHEMAS, *ADDITIONAL_TOOL_SCHEMAS]
 TOOL_NAMES = {schema["function"]["name"] for schema in TOOL_SCHEMAS}
 DESKTOP_TOOL_NAMES = {
     "desktop_list_windows",
@@ -215,14 +238,28 @@ DESKTOP_TOOL_NAMES = {
 }
 
 
+def _is_structured_document(path: str) -> bool:
+    return Path(path).suffix.casefold() in SUPPORTED_EXTENSIONS
+
+
 def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
     """Describe a runtime tool for the host approval UI."""
-    if name not in DESKTOP_TOOL_NAMES and name != "propose_plan":
-        return describe_base_tool(name, arguments)
     try:
         parsed = json.loads(arguments or "{}")
     except json.JSONDecodeError:
         parsed = {}
+
+    if name == "read_text_file" and _is_structured_document(str(parsed.get("path", ""))):
+        return (
+            f"Read structured document: {parsed.get('path', '')}",
+            "Extract bounded document structure and content without editing the source file",
+            (
+                "Choose Y to keep document content terminal-only, or A to explicitly allow "
+                "Groq access. Office package expansion and output are bounded before parsing."
+            ),
+        )
+    if name not in DESKTOP_TOOL_NAMES and name != "propose_plan":
+        return describe_base_tool(name, arguments)
 
     if name == "propose_plan":
         return ("Present a multi-step execution plan", "Request one-request scoped approval", None)
@@ -310,6 +347,23 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
 
 def execute_tool(name: str, arguments: str = "{}") -> str | LocalOnlyResult:
     """Execute a runtime tool after host-side governance has approved it."""
+    if name == "read_text_file":
+        try:
+            parsed = json.loads(arguments or "{}")
+        except json.JSONDecodeError:
+            return "Tool arguments were invalid JSON; nothing was executed."
+        path = str(parsed.get("path", ""))
+        if _is_structured_document(path):
+            return LocalOnlyResult(
+                (
+                    "The approved structured document was read and its extracted content was "
+                    "displayed only in the user's terminal. Do not infer its contents unless "
+                    "the user explicitly allows Groq access."
+                ),
+                read_structured_document(path),
+            )
+        return execute_base_tool(name, arguments)
+
     if name not in DESKTOP_TOOL_NAMES:
         return execute_base_tool(name, arguments)
     try:
