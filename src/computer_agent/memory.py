@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+BETA_MEMORY_FILENAME = "interly-memory.txt"
+
 from computer_agent.config import memory_file
 
 
@@ -54,6 +56,26 @@ class MemoryStore:
 
     def export_entries(self) -> list[dict[str, Any]]:
         return self._read()
+
+    def save_beta_memory(self, path: str | Path | None, key: str, value: str) -> dict[str, Any]:
+        target = Path(path) if path is not None else self.path.parent / BETA_MEMORY_FILENAME
+        target.parent.mkdir(parents=True, exist_ok=True)
+        entry = {"key": key, "value": value}
+        existing: list[dict[str, Any]] = []
+        if target.exists():
+            try:
+                raw = json.loads(target.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                raw = []
+            if isinstance(raw, list):
+                existing = [item for item in raw if isinstance(item, dict)]
+        for item in existing:
+            if item.get("key") == key:
+                existing.remove(item)
+                break
+        existing.append(entry)
+        target.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+        return entry
 
     def clear_entries(self) -> int:
         entries = self._read()

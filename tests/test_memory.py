@@ -47,6 +47,18 @@ def test_memory_store_exports_and_clears_entries(tmp_path: Path) -> None:
     assert store.list_entries() == []
 
 
+def test_beta_memory_file_is_created_and_populated(tmp_path: Path) -> None:
+    path = tmp_path / "interly-memory.txt"
+    store = MemoryStore(tmp_path / "memory.json")
+
+    entry = store.save_beta_memory(path, "Home-Wifi-8234", "that's the name of my WiFi")
+
+    assert path.exists()
+    assert entry["key"] == "Home-Wifi-8234"
+    assert entry["value"] == "that's the name of my WiFi"
+    assert "Home-Wifi-8234" in path.read_text(encoding="utf-8")
+
+
 def test_memory_file_uses_user_config_directory(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("INTERLY_CONFIG_DIR", str(tmp_path))
 

@@ -111,7 +111,8 @@ Goal: move Interly from session-only context toward persistent continuity and re
 2. [x] **#84 — Memory inspect/export/delete controls**
 3. [x] **#83 — Personal facts/preferences memory with explicit user approval**
 4. [x] **#87 — Reusable named workflows**
-5. [ ] **#88 — Scheduled tasks, reminders and monitors**
+5. [x] **Beta — make-memory for simple queued local notes in interly-memory.txt**
+6. [ ] **#88 — Scheduled tasks, reminders and monitors**
 
 ### Intended flow
 

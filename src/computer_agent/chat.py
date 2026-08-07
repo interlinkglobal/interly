@@ -143,6 +143,25 @@ def run_chat(
             write_output(f"Cleared {cleared} memory entries.")
             continue
 
+        if user_text.casefold() == "make-memory":
+            target = memory_store.path.parent / "interly-memory.txt"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if not target.exists():
+                target.write_text("[]\n", encoding="utf-8")
+            write_output(f"interly-memory.txt created at {target}")
+            continue
+
+        if user_text.casefold().startswith("make-memory "):
+            parts = user_text.split(maxsplit=2)
+            if len(parts) == 3:
+                _, _, description = parts
+                target = memory_store.path.parent / "interly-memory.txt"
+                entry = memory_store.save_beta_memory(target, description, description)
+                write_output(f"I have saved {entry['value']!r} in interly-memory.txt")
+            else:
+                write_output("Usage: make-memory <value>")
+            continue
+
         if user_text.casefold() == "workflows":
             workflows = workflow_registry.list_workflows()
             if workflows:

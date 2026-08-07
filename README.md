@@ -59,6 +59,7 @@ Development installations upgrade through pipx. Restart Interly after a successf
 - Memory inspection, export, and clear controls from the chat loop
 - Reusable named workflows and workflow listing support
 - Repository inspection and bounded repository command execution
+- Beta make-memory command for saving simple text snippets to a local interly-memory.txt file
 - Approval before every local action
 - Open applications registered with Windows or explicit executable commands resolved by Windows
 - Discover, close, or forcibly terminate exact processes by PID
@@ -113,6 +114,7 @@ can continue.
 - [x] Memory inspect/export/clear controls available through the chat loop
 - [x] Reusable named workflows and workflow listing support
 - [x] Repository inspection and bounded repository command execution for developer workflows
+- [x] Beta make-memory command for saving simple local notes to interly-memory.txt
 
 ## Important limitations
 
