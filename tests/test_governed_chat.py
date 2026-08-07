@@ -49,6 +49,10 @@ def scripted_input(values, prompts):
     return reader
 
 
+def tool_contents(messages):
+    return [message["content"] for message in messages if message.get("role") == "tool"]
+
+
 def test_dry_run_never_calls_executor(tmp_path, monkeypatch):
     monkeypatch.setenv("INTERLY_CONFIG_DIR", str(tmp_path))
 
@@ -63,15 +67,14 @@ def test_dry_run_never_calls_executor(tmp_path, monkeypatch):
         ]
     )
     prompts = []
-    output = []
 
-    run_chat(
+    messages = run_chat(
         model,
         read_input=scripted_input(["dry-run on", "test", "y", "exit"], prompts),
-        write_output=output.append,
+        write_output=lambda _message: None,
     )
 
-    assert any("DRY RUN" in message for message in output)
+    assert any("DRY RUN" in content for content in tool_contents(messages))
     audit_text = (tmp_path / "audit.jsonl").read_text(encoding="utf-8")
     assert '"outcome": "dry-run"' in audit_text
 
@@ -133,16 +136,15 @@ def test_policy_deny_blocks_tool_without_execution(tmp_path, monkeypatch):
         ]
     )
     prompts = []
-    output = []
 
-    run_chat(
+    messages = run_chat(
         model,
         read_input=scripted_input(
             ["policy set get_current_time deny", "test", "exit"],
             prompts,
         ),
-        write_output=output.append,
+        write_output=lambda _message: None,
     )
 
-    assert any("Permission policy denied" in message for message in output)
+    assert any("Permission policy denied" in content for content in tool_contents(messages))
     assert not any(prompt.startswith("Allow?") for prompt in prompts)
