@@ -69,7 +69,12 @@ class OutputBudget:
 
 def document_support_status() -> str:
     """Return a frozen-build smoke-test string after all document backends import."""
-    backends = [pdfplumber.__name__, WordDocument.__module__, load_workbook.__module__, Presentation.__module__]
+    backends = [
+        pdfplumber.__name__,
+        WordDocument.__module__,
+        load_workbook.__module__,
+        Presentation.__module__,
+    ]
     if not all(backends):
         raise RuntimeError("One or more document backends failed to import.")
     return "Document support: PDF DOCX XLSX XLSM PPTX"
@@ -200,7 +205,11 @@ def _pdf_headings(page: Any, budget: OutputBudget) -> list[dict[str, Any]]:
         return []
     body_size = median(sizes)
     lines: list[list[dict[str, Any]]] = []
-    for word in sorted(words, key=lambda item: (float(item.get("top", 0)), float(item.get("x0", 0)))):
+    sorted_words = sorted(
+        words,
+        key=lambda item: (float(item.get("top", 0)), float(item.get("x0", 0))),
+    )
+    for word in sorted_words:
         top = float(word.get("top", 0))
         if not lines or abs(top - float(lines[-1][0].get("top", 0))) > 3:
             lines.append([word])
@@ -251,19 +260,27 @@ def _read_word(path: Path, budget: OutputBudget) -> dict[str, Any]:
                 )
         elif isinstance(child, CT_Tbl):
             table = Table(child, document)
+            table_rows = list(table.rows)
             rows = []
-            for row in table.rows[:MAX_TABLE_ROWS]:
+            for row in table_rows[:MAX_TABLE_ROWS]:
+                cells = list(row.cells)
                 rows.append(
-                    [budget.take(cell.text.strip(), 2_000) for cell in row.cells[:MAX_TABLE_COLUMNS]]
+                    [
+                        budget.take(cell.text.strip(), 2_000)
+                        for cell in cells[:MAX_TABLE_COLUMNS]
+                    ]
                 )
             blocks.append(
                 {
                     "kind": "table",
                     "rows": rows,
-                    "row_count": len(table.rows),
-                    "column_count": max((len(row.cells) for row in table.rows), default=0),
-                    "truncated": len(table.rows) > MAX_TABLE_ROWS
-                    or any(len(row.cells) > MAX_TABLE_COLUMNS for row in table.rows),
+                    "row_count": len(table_rows),
+                    "column_count": max(
+                        (len(list(row.cells)) for row in table_rows),
+                        default=0,
+                    ),
+                    "truncated": len(table_rows) > MAX_TABLE_ROWS
+                    or any(len(list(row.cells)) > MAX_TABLE_COLUMNS for row in table_rows),
                 }
             )
     core = document.core_properties
@@ -278,7 +295,9 @@ def _read_word(path: Path, budget: OutputBudget) -> dict[str, Any]:
     }
     return {
         "document_type": "word",
-        "metadata": {key: value for key, value in metadata.items() if value not in {None, ""}},
+        "metadata": {
+            key: value for key, value in metadata.items() if value not in {None, ""}
+        },
         "blocks": blocks,
         "paragraph_count": len(document.paragraphs),
         "table_count": len(document.tables),
@@ -307,9 +326,16 @@ def _read_excel(path: Path, budget: OutputBudget) -> dict[str, Any]:
                 for cell in row[:MAX_TABLE_COLUMNS]:
                     value = _excel_value(cell.value, budget)
                     values.append(value)
-                    if isinstance(cell.value, str) and cell.value.startswith("=") and len(formula_cells) < 500:
+                    if (
+                        isinstance(cell.value, str)
+                        and cell.value.startswith("=")
+                        and len(formula_cells) < 500
+                    ):
                         formula_cells.append(
-                            {"cell": cell.coordinate, "formula": budget.take(cell.value, 2_000)}
+                            {
+                                "cell": cell.coordinate,
+                                "formula": budget.take(cell.value, 2_000),
+                            }
                         )
                 max_columns_seen = max(max_columns_seen, len(row))
                 if header_row is None and any(value not in {None, ""} for value in values):
@@ -318,7 +344,7 @@ def _read_excel(path: Path, budget: OutputBudget) -> dict[str, Any]:
                     captured_rows.append(values)
                 else:
                     budget.truncated = True
-                if row_count >= max(MAX_TABLE_ROWS + 1, 5_000):
+                if row_count >= 5_000:
                     budget.truncated = True
                     break
                 if budget.remaining_chars <= 0:
@@ -341,7 +367,8 @@ def _read_excel(path: Path, budget: OutputBudget) -> dict[str, Any]:
                     "headers": header_row or [],
                     "rows": captured_rows,
                     "formula_cells": formula_cells,
-                    "truncated": max_row > len(captured_rows) or max_column > MAX_TABLE_COLUMNS,
+                    "truncated": max_row > len(captured_rows)
+                    or max_column > MAX_TABLE_COLUMNS,
                 }
             )
     finally:
@@ -357,30 +384,37 @@ def _read_excel(path: Path, budget: OutputBudget) -> dict[str, Any]:
 def _read_powerpoint(path: Path, budget: OutputBudget) -> dict[str, Any]:
     presentation = Presentation(path)
     slides: list[dict[str, Any]] = []
-    for index, slide in enumerate(presentation.slides[:MAX_SLIDES], start=1):
+    slide_list = list(presentation.slides)
+    for index, slide in enumerate(slide_list[:MAX_SLIDES], start=1):
         if budget.remaining_chars <= 0:
             budget.truncated = True
             break
         title_shape = slide.shapes.title
-        title = budget.take(title_shape.text.strip(), 1_000) if title_shape and title_shape.text else ""
+        title = (
+            budget.take(title_shape.text.strip(), 1_000)
+            if title_shape is not None and title_shape.text
+            else ""
+        )
         blocks: list[dict[str, Any]] = []
         tables: list[dict[str, Any]] = []
         for shape in slide.shapes:
             if getattr(shape, "has_table", False):
+                table_rows = list(shape.table.rows)
                 rows = []
-                for row in shape.table.rows[:MAX_TABLE_ROWS]:
+                for row in table_rows[:MAX_TABLE_ROWS]:
+                    cells = list(row.cells)
                     rows.append(
                         [
                             budget.take(cell.text.strip(), 2_000)
-                            for cell in row.cells[:MAX_TABLE_COLUMNS]
+                            for cell in cells[:MAX_TABLE_COLUMNS]
                         ]
                     )
                 tables.append(
                     {
                         "rows": rows,
-                        "row_count": len(shape.table.rows),
+                        "row_count": len(table_rows),
                         "column_count": len(shape.table.columns),
-                        "truncated": len(shape.table.rows) > MAX_TABLE_ROWS
+                        "truncated": len(table_rows) > MAX_TABLE_ROWS
                         or len(shape.table.columns) > MAX_TABLE_COLUMNS,
                     }
                 )
@@ -426,10 +460,12 @@ def _read_powerpoint(path: Path, budget: OutputBudget) -> dict[str, Any]:
     }
     return {
         "document_type": "powerpoint",
-        "metadata": {key: value for key, value in metadata.items() if value not in {None, ""}},
-        "slide_count": len(presentation.slides),
+        "metadata": {
+            key: value for key, value in metadata.items() if value not in {None, ""}
+        },
+        "slide_count": len(slide_list),
         "slides": slides,
-        "truncated": len(presentation.slides) > len(slides) or budget.truncated,
+        "truncated": len(slide_list) > len(slides) or budget.truncated,
     }
 
 
@@ -439,7 +475,10 @@ def _bounded_tables(tables: list[Any], budget: OutputBudget) -> list[dict[str, A
         rows = []
         for row in table[:MAX_TABLE_ROWS]:
             rows.append(
-                [budget.take(cell, 2_000) if cell is not None else None for cell in row[:MAX_TABLE_COLUMNS]]
+                [
+                    budget.take(cell, 2_000) if cell is not None else None
+                    for cell in row[:MAX_TABLE_COLUMNS]
+                ]
             )
         output.append(
             {
