@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -49,13 +49,14 @@ class ApprovedPlan:
 
     def allows(self, tool: str, arguments: str) -> bool:
         """Return whether this exact tool call falls inside the approved plan scope."""
-        argument_text = _normalise_argument_text(arguments)
+        argument_values = _argument_string_values(arguments)
         for step in self.steps:
             if step.tool != tool:
                 continue
             if not step.scope:
                 return True
-            if step.scope.casefold() in argument_text.casefold():
+            scope = step.scope.casefold()
+            if any(scope in value.casefold() for value in argument_values):
                 return True
         return False
 
@@ -143,7 +144,7 @@ class ActionAuditLog:
             else action[:1000]
         )
         entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
             "request_id": request_id,
             "tool": tool,
             "action": safe_action,
@@ -194,7 +195,7 @@ def parse_plan(arguments: str, known_tools: set[str]) -> tuple[str, tuple[PlanSt
     steps: list[PlanStep] = []
     for raw in raw_steps:
         if not isinstance(raw, dict):
-            raise ValueError("Every plan step must be an object.")
+            raise TypeError("Every plan step must be an object.")
         tool = str(raw.get("tool", "")).strip()
         action = str(raw.get("action", "")).strip()
         scope = str(raw.get("scope", "")).strip()
@@ -256,9 +257,22 @@ def _safe_url(value: str) -> str:
     return urlunsplit((parsed.scheme, hostname, parsed.path, "", ""))
 
 
-def _normalise_argument_text(arguments: str) -> str:
+def _argument_string_values(arguments: str) -> list[str]:
     try:
         payload = json.loads(arguments or "{}")
     except json.JSONDecodeError:
-        return arguments
-    return json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        return [arguments]
+    values: list[str] = []
+
+    def collect(value: Any) -> None:
+        if isinstance(value, str):
+            values.append(value)
+        elif isinstance(value, dict):
+            for nested in value.values():
+                collect(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                collect(nested)
+
+    collect(payload)
+    return values
