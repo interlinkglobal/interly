@@ -53,6 +53,26 @@ def test_update_command_bypasses_model_and_runs_updater() -> None:
     assert "Interly is already current." in output
 
 
+def test_memory_command_lists_stored_entries(tmp_path, monkeypatch) -> None:
+    from computer_agent.memory import MemoryStore
+
+    monkeypatch.setenv("INTERLY_CONFIG_DIR", str(tmp_path))
+    store = MemoryStore(tmp_path / "memory.json")
+    store.add_entry("name", "Ada", approved=True)
+
+    output: list[str] = []
+    answers = iter(["memory", "exit"])
+
+    run_chat(
+        model=OfflineModel(),
+        read_input=lambda _prompt: next(answers),
+        write_output=output.append,
+    )
+
+    assert "Stored memory:" in output
+    assert "- name: Ada" in output
+
+
 def test_groq_model_returns_text_from_client() -> None:
     response = SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content="Hello from Groq"))]

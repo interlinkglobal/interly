@@ -30,6 +30,11 @@ def load_settings() -> Settings:
     return Settings(_env_file=(config_file(), Path.cwd() / ".env"))
 
 
+def memory_file() -> Path:
+    """Return the per-user memory storage path."""
+    return config_file().parent / "memory.json"
+
+
 def save_api_key(api_key: str) -> Path:
     """Store the Groq key in the current user's private Interly configuration directory."""
     path = config_file()

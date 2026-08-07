@@ -9,6 +9,7 @@ from datetime import datetime
 from typing import Any
 
 from computer_agent.browser import BROWSER
+from computer_agent.dev_workflows import RepositoryWorkflow
 from computer_agent.files import (
     compare_files,
     create_text_file,
@@ -426,6 +427,22 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "name": "manage_path",
             "description": "Create a folder, or copy, move, or rename an exact file or folder without overwriting.",
             "parameters": {"type": "object", "properties": {"action": {"type": "string", "enum": ["mkdir", "copy", "move", "rename"]}, "source": {"type": "string"}, "destination": {"type": "string"}}, "required": ["action", "source", "destination"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "inspect_repository",
+            "description": "Inspect a repository directory and list its files.",
+            "parameters": {"type": "object", "properties": {"root": {"type": "string"}}, "required": ["root"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_repository_command",
+            "description": "Run a bounded command inside a repository directory.",
+            "parameters": {"type": "object", "properties": {"root": {"type": "string"}, "command": {"type": "array", "items": {"type": "string"}}, "timeout": {"type": "integer", "minimum": 1}}, "required": ["root", "command"], "additionalProperties": False},
         },
     },
     {
@@ -937,6 +954,18 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
             "Manage the exact approved filesystem path",
             "Moving or renaming changes the source location; destinations are not overwritten.",
         )
+    if name == "inspect_repository":
+        return (
+            f"Inspect repository: {parsed.get('root', '')}",
+            "List repository files and structure",
+            None,
+        )
+    if name == "run_repository_command":
+        return (
+            f"Run repository command: {parsed.get('command', [])}",
+            "Execute a bounded command inside the repository",
+            "Review the command and timeout before approval.",
+        )
     if name == "compare_files":
         return (
             f"Compare files: {parsed.get('left', '')} and {parsed.get('right', '')}",
@@ -1090,6 +1119,16 @@ def execute_tool(name: str, arguments: str = "{}") -> str | LocalOnlyResult:
             str(parsed.get("action", "")),
             str(parsed.get("source", "")),
             str(parsed.get("destination", "")),
+        )
+    if name == "inspect_repository":
+        workflow = RepositoryWorkflow(str(parsed.get("root", "")))
+        return json.dumps(workflow.inspect(), indent=2)
+    if name == "run_repository_command":
+        payload = parsed
+        workflow = RepositoryWorkflow(str(payload.get("root", "")))
+        return json.dumps(
+            workflow.run_command(list(payload.get("command", [])), timeout=int(payload.get("timeout", 30))),
+            indent=2,
         )
     if name == "compare_files":
         return LocalOnlyResult(

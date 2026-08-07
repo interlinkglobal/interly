@@ -8,6 +8,7 @@ from playwright.sync_api import Error as PlaywrightError
 
 from computer_agent.browser import BROWSER
 from computer_agent.emergency import EmergencyStop
+from computer_agent.memory import MemoryStore
 from computer_agent.models import AuthenticationModelError, ChatModel, ModelError
 from computer_agent.tools import LocalOnlyResult, describe_tool, execute_tool
 
@@ -55,6 +56,7 @@ def run_chat(
     messages: list[dict[str, Any]] = []
     session_approvals: set[str] = set()
     free_until: float | None = None
+    memory_store = MemoryStore()
     write_output("Interlink is ready. Type 'exit' to stop.")
 
     while True:
@@ -106,6 +108,16 @@ def run_chat(
                     f"Automatic command approval enabled for {minutes} minute"
                     f"{'s' if minutes != 1 else ''}. Emergency stop remains active."
                 )
+            continue
+
+        if user_text.casefold() == "memory":
+            entries = memory_store.list_entries()
+            if entries:
+                write_output("Stored memory:")
+                for entry in entries:
+                    write_output(f"- {entry['key']}: {entry['value']}")
+            else:
+                write_output("No memory entries stored.")
             continue
 
         if not user_text:

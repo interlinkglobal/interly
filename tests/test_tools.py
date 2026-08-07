@@ -213,3 +213,24 @@ def test_file_read_is_local_only_by_default(_read: object) -> None:
     assert isinstance(result, LocalOnlyResult)
     assert result.terminal_output == "private file data"
     assert "private file data" not in result.model_status
+
+
+def test_repository_workflow_tools_are_described_and_executed(tmp_path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "pyproject.toml").write_text("[project]\nname='demo'\n", encoding="utf-8")
+
+    repo_json = str(repo).replace("\\", "\\\\")
+    action, reason, warning = describe_tool("inspect_repository", f'{{"root": "{repo_json}"}}')
+    assert "Inspect repository" in action
+    assert reason == "List repository files and structure"
+    assert warning is None
+
+    result = execute_tool("inspect_repository", f'{{"root": "{repo_json}"}}')
+    assert "pyproject.toml" in result
+
+    command_result = execute_tool(
+        "run_repository_command",
+        f'{{"root": "{repo_json}", "command": ["python", "-c", "print(1)"], "timeout": 5}}',
+    )
+    assert '"returncode": 0' in command_result
