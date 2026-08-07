@@ -13,7 +13,8 @@ def test_windows_installer_bootstraps_required_components() -> None:
     assert "-m pip install --user --upgrade pipx" in script
     assert "-m pipx ensurepath" in script
     assert "-m pipx install --force $InterlySpec" in script
-    assert "agent/next-ten-roadmap" in script
+    assert "Interly.git@main" in script
+    assert "agent/next-ten-roadmap" not in script
     assert "& $interlyPath" in script
 
 
@@ -21,6 +22,6 @@ def test_readme_exposes_one_cmd_compatible_install_command() -> None:
     readme = (INSTALLER.parent / "README.md").read_text(encoding="utf-8")
 
     assert "powershell -NoProfile -ExecutionPolicy Bypass" in readme
-    assert "install.ps1' | iex" in readme
+    assert "Interly/main/install.ps1' | iex" in readme
     assert "Node.js" in readme
     assert "not required" in readme
