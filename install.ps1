@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-$InterlySpec = "git+https://github.com/interlinkglobal/Interly.git@agent/next-ten-roadmap"
+$InterlySpec = "git+https://github.com/interlinkglobal/Interly.git@main"
 $PythonVersion = "3.13.14"
 
 function Write-Step([string]$Message) {
