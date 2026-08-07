@@ -5,7 +5,8 @@ from __future__ import annotations
 import ctypes
 import json
 import os
-from datetime import datetime
+from ctypes import wintypes
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +50,7 @@ def list_windows() -> str:
         title = buffer.value.strip()
         if not title:
             return True
-        rect = ctypes.wintypes.RECT()
+        rect = wintypes.RECT()
         if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
             return True
         pid = ctypes.c_ulong()
@@ -112,7 +113,7 @@ def window_action(
     if new_width < 100 or new_height < 60 or new_width > 16_384 or new_height > 16_384:
         return "Requested window size is outside Interly's allowed bounds."
 
-    flags = 0x0004 | 0x0010  # SWP_NOZORDER | SWP_NOACTIVATE
+    flags = 0x0004 | 0x0010
     if not user32.SetWindowPos(hwnd, 0, left, top, new_width, new_height, flags):
         return "Windows rejected the requested window position or size."
     return (
@@ -175,7 +176,8 @@ def ocr_image(path: str) -> str:
         return f"Image does not exist: {source}"
     if source.stat().st_size > 50_000_000:
         return "OCR image exceeds the 50 MB limit."
-    if source.suffix.casefold() not in {".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff"}:
+    supported = {".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff"}
+    if source.suffix.casefold() not in supported:
         return "OCR supports PNG, JPEG, BMP, WebP, and TIFF images."
 
     from rapidocr import RapidOCR
@@ -250,13 +252,13 @@ def read_clipboard() -> str:
     """Read Unicode text from the Windows clipboard."""
     user32 = _user32()
     kernel32 = _kernel32()
-    CF_UNICODETEXT = 13
+    cf_unicode_text = 13
     kernel32.GlobalLock.restype = ctypes.c_void_p
     user32.GetClipboardData.restype = ctypes.c_void_p
     if not user32.OpenClipboard(None):
         return "Clipboard is currently unavailable."
     try:
-        handle = user32.GetClipboardData(CF_UNICODETEXT)
+        handle = user32.GetClipboardData(cf_unicode_text)
         if not handle:
             return "Clipboard does not currently contain Unicode text."
         pointer = kernel32.GlobalLock(handle)
@@ -279,12 +281,13 @@ def write_clipboard(text: str) -> str:
         return f"Clipboard text exceeds the {MAX_CLIPBOARD_CHARS:,}-character limit."
     user32 = _user32()
     kernel32 = _kernel32()
-    CF_UNICODETEXT = 13
-    GMEM_MOVEABLE = 0x0002
+    cf_unicode_text = 13
+    gmem_moveable = 0x0002
     data = (text + "\0").encode("utf-16-le")
     kernel32.GlobalAlloc.restype = ctypes.c_void_p
     kernel32.GlobalLock.restype = ctypes.c_void_p
-    handle = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+    user32.SetClipboardData.restype = ctypes.c_void_p
+    handle = kernel32.GlobalAlloc(gmem_moveable, len(data))
     if not handle:
         return "Could not allocate clipboard memory."
     pointer = kernel32.GlobalLock(handle)
@@ -299,7 +302,7 @@ def write_clipboard(text: str) -> str:
     success = False
     try:
         user32.EmptyClipboard()
-        success = bool(user32.SetClipboardData(CF_UNICODETEXT, handle))
+        success = bool(user32.SetClipboardData(cf_unicode_text, handle))
     finally:
         user32.CloseClipboard()
     if not success:
@@ -376,15 +379,55 @@ def keyboard_action(action: str, *, text: str = "", keys: list[str] | None = Non
 
 def _resolve_key(key_type: Any, name: str) -> Any | None:
     normal = name.casefold().replace("-", "_")
-    aliases = {"ctrl": "ctrl", "control": "ctrl", "win": "cmd", "windows": "cmd", "escape": "esc"}
+    aliases = {
+        "ctrl": "ctrl",
+        "control": "ctrl",
+        "win": "cmd",
+        "windows": "cmd",
+        "escape": "esc",
+    }
     normal = aliases.get(normal, normal)
     if len(name) == 1:
         return name
     allowed = {
-        "alt", "alt_l", "alt_r", "backspace", "caps_lock", "cmd", "ctrl", "ctrl_l", "ctrl_r",
-        "delete", "down", "end", "enter", "esc", "home", "insert", "left", "page_down",
-        "page_up", "right", "shift", "shift_l", "shift_r", "space", "tab", "up",
-        "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12",
+        "alt",
+        "alt_l",
+        "alt_r",
+        "backspace",
+        "caps_lock",
+        "cmd",
+        "ctrl",
+        "ctrl_l",
+        "ctrl_r",
+        "delete",
+        "down",
+        "end",
+        "enter",
+        "esc",
+        "home",
+        "insert",
+        "left",
+        "page_down",
+        "page_up",
+        "right",
+        "shift",
+        "shift_l",
+        "shift_r",
+        "space",
+        "tab",
+        "up",
+        "f1",
+        "f2",
+        "f3",
+        "f4",
+        "f5",
+        "f6",
+        "f7",
+        "f8",
+        "f9",
+        "f10",
+        "f11",
+        "f12",
     }
     return getattr(key_type, normal, None) if normal in allowed else None
 
@@ -395,7 +438,7 @@ def _capture_path(destination: str, mode: str) -> Path:
         if path.suffix.casefold() != ".png":
             raise ValueError("Desktop screenshots must use a .png destination.")
         return path
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
     return desktop_capture_dir() / f"{mode}-{timestamp}.png"
 
 
@@ -409,7 +452,7 @@ def _window_details(hwnd: int) -> dict[str, Any] | None:
     title = buffer.value.strip()
     if not title:
         return None
-    rect = ctypes.wintypes.RECT()
+    rect = wintypes.RECT()
     if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
         return None
     return {
