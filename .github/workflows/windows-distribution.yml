@@ -46,7 +46,7 @@ jobs:
         shell: pwsh
         run: |
           $version = & .\dist\interly.exe --version
-          if ($LASTEXITCODE -ne 0 -or $version -ne "Interly 0.5.1") {
+          if ($LASTEXITCODE -ne 0 -or $version -ne "Interly 0.6.0") {
             throw "Standalone executable smoke test failed: $version"
           }
 
@@ -56,16 +56,16 @@ jobs:
       - name: Build Windows installer
         shell: pwsh
         run: |
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=0.5.1" packaging\interly.iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=0.6.0" packaging\interly.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed." }
 
       - name: Generate WinGet manifests
         shell: pwsh
         run: |
           $sha = (Get-FileHash .\dist\InterlySetup-x64.exe -Algorithm SHA256).Hash
-          $url = "https://github.com/interlinkglobal/Interly/releases/download/v0.5.1/InterlySetup-x64.exe"
-          python packaging\render_winget.py --version 0.5.1 --installer-url $url --sha256 $sha --output dist\winget
-          Compress-Archive -Path dist\winget\* -DestinationPath dist\Interly-0.5.1-winget-manifests.zip
+          $url = "https://github.com/interlinkglobal/Interly/releases/download/v0.6.0/InterlySetup-x64.exe"
+          python packaging\render_winget.py --version 0.6.0 --installer-url $url --sha256 $sha --output dist\winget
+          Compress-Archive -Path dist\winget\* -DestinationPath dist\Interly-0.6.0-winget-manifests.zip
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -75,7 +75,7 @@ jobs:
             dist/interly.exe
             dist/interlink.exe
             dist/InterlySetup-x64.exe
-            dist/Interly-0.5.1-winget-manifests.zip
+            dist/Interly-0.6.0-winget-manifests.zip
 
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -86,4 +86,4 @@ jobs:
             dist/interly.exe
             dist/interlink.exe
             dist/InterlySetup-x64.exe
-            dist/Interly-0.5.1-winget-manifests.zip
+            dist/Interly-0.6.0-winget-manifests.zip
