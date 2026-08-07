@@ -75,27 +75,33 @@ Interly can inspect the visible Windows desktop, capture it, extract text throug
 # Priority 3 — Documents & Safe Filesystem Completion
 
 **Owner: Joint / Convergence Point**  
-**Status: Active — both streams meet here**
+**Status: Active — structured documents complete; filesystem safety remains**
 
 This is the current shared workstream after the parallel implementation passes.
 
 Goal: complete Interly's existing filesystem layer and expand it from text-file access into structured document work.
 
-1. [ ] **#67 — Structured PDF, Word, Excel and PowerPoint understanding**
+1. [x] **#67 — Structured PDF, Word, Excel and PowerPoint understanding**
+   - PDF pages, text, heuristic headings, tables and metadata
+   - Word ordered headings, paragraphs, tables and metadata
+   - Excel sheets, used ranges, headers, rows and formulas
+   - PowerPoint slides, titles, text blocks, tables, speaker notes and metadata
+   - read-only and local-only by default through the existing sensitive file-read approval path
+   - verified in the packaged Windows executable
 2. [ ] **#66 — File deletion through the Windows Recycle Bin**
 3. [ ] **#70 — Malware scanning and quarantine checks for downloads**
 
-### Intended file flow
+### Current file flow
 
-`find → read → understand → compare → create/edit → move/copy → delete safely`
+`find → read → understand ✅ → compare → create/edit → move/copy → delete safely`
 
-### Intended download flow
+### Remaining download flow
 
 `download → inspect → scan → accept / quarantine`
 
-### Completion outcome
+### Current outcome
 
-Interly can work with common structured documents, complete ordinary filesystem management safely, and treat downloaded files as a security-sensitive pipeline.
+Interly can now understand common structured documents instead of treating them as opaque files. Priority 3 remains active until ordinary file deletion uses the Windows Recycle Bin and downloaded files have a malware scanning/quarantine path.
 
 ---
 
@@ -165,7 +171,7 @@ Goal: turn Interly's existing machine and file capabilities into a coherent soft
 **Status: After Priority 3 convergence**
 
 1. [ ] **#78 — Volume and mute control**
-2. [ ] **#79 — Brightness control**
+2. [ ] **#79 — Brightness control where supported**
 3. [ ] **#80 — Speech input**
 4. [ ] **#81 — Speech output and optional wake phrase**
 
@@ -194,7 +200,7 @@ This comes after the major capability and security architecture stabilises so th
 |---|---|---|---|
 | 1 | Execution Governance | **ChatGPT** | Complete ✅ |
 | 2 | Desktop Perception & Interaction | **ChatGPT** | Complete ✅ |
-| 3 | Documents & Safe Filesystem Completion | **Joint** | **Active convergence point** |
+| 3 | Documents & Safe Filesystem Completion | **Joint** | **Active — #67 complete; #66/#70 open** |
 | 4 | Persistent Memory & Reusable Work | **User** | Checkpoint complete; #88 open |
 | 5 | Developer Agent | **User** | Checkpoint complete; #91 and #98 open |
 | 6 | Release & Supply-Chain Security | Deferred | After Priority 3 |
@@ -210,7 +216,7 @@ Completed parallel passes:
 
 Current shared position:
 
-**Both:** `→ Priority 3`
+**Both:** `→ Priority 3 (#67 ✅; #66/#70 next)`
 
 ---
 
