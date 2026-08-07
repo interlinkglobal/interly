@@ -33,4 +33,4 @@ def test_working_groq_key_is_validated_before_save(groq: object, save: object) -
 def test_version_flag_exits_before_setup(capsys: object) -> None:
     main()
 
-    assert "Interly 0.5.1" in capsys.readouterr().out
+    assert "Interly 0.6.0" in capsys.readouterr().out
