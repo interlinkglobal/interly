@@ -114,7 +114,7 @@ can continue.
 - [x] Memory inspect/export/clear controls available through the chat loop
 - [x] Reusable named workflows and workflow listing support
 - [x] Repository inspection and bounded repository command execution for developer workflows
-- [x] Beta make-memory command for saving simple local notes to interly-memory.txt
+- Beta make-memory command idea for saving simple local notes to interly-memory.txt
 
 ## Important limitations
 
