@@ -16,12 +16,10 @@ from computer_agent.desktop import (
     window_action,
     write_clipboard,
 )
-from computer_agent.tools import (
-    TOOL_SCHEMAS as BASE_TOOL_SCHEMAS,
-    LocalOnlyResult,
-    describe_tool as describe_base_tool,
-    execute_tool as execute_base_tool,
-)
+from computer_agent.tools import TOOL_SCHEMAS as BASE_TOOL_SCHEMAS
+from computer_agent.tools import LocalOnlyResult
+from computer_agent.tools import describe_tool as describe_base_tool
+from computer_agent.tools import execute_tool as execute_base_tool
 
 
 def _function(name: str, description: str, parameters: dict[str, Any]) -> dict[str, Any]:
@@ -89,7 +87,14 @@ ADDITIONAL_TOOL_SCHEMAS: list[dict[str, Any]] = [
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["focus", "minimize", "maximize", "restore", "move", "resize"],
+                    "enum": [
+                        "focus",
+                        "minimize",
+                        "maximize",
+                        "restore",
+                        "move",
+                        "resize",
+                    ],
                 },
                 "window_handle": {"type": "integer", "minimum": 1},
                 "window_title": {"type": "string"},
@@ -135,7 +140,9 @@ ADDITIONAL_TOOL_SCHEMAS: list[dict[str, Any]] = [
         ),
         {
             "type": "object",
-            "properties": {"max_controls": {"type": "integer", "minimum": 1, "maximum": 100}},
+            "properties": {
+                "max_controls": {"type": "integer", "minimum": 1, "maximum": 100}
+            },
             "additionalProperties": False,
         },
     ),
@@ -160,7 +167,10 @@ ADDITIONAL_TOOL_SCHEMAS: list[dict[str, Any]] = [
         {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["move", "click", "double_click", "scroll"]},
+                "action": {
+                    "type": "string",
+                    "enum": ["move", "click", "double_click", "scroll"],
+                },
                 "x": {"type": "integer"},
                 "y": {"type": "integer"},
                 "button": {"type": "string", "enum": ["left", "right", "middle"]},
@@ -224,11 +234,17 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
         )
     if name == "desktop_window_action":
         action = parsed.get("action", "unknown")
-        return (
+        window_label = (
             f"{str(action).upper()} window: {parsed.get('window_title', '')!r} "
-            f"(handle {parsed.get('window_handle', '?')})",
+            f"(handle {parsed.get('window_handle', '?')})"
+        )
+        return (
+            window_label,
             "Manipulate the exact revalidated Windows window",
-            "Moving, resizing, minimizing, or focusing a window changes the visible desktop state.",
+            (
+                "Moving, resizing, minimizing, or focusing a window changes the visible "
+                "desktop state."
+            ),
         )
     if name == "desktop_screenshot":
         target = (
@@ -268,14 +284,20 @@ def describe_tool(name: str, arguments: str) -> tuple[str, str, str | None]:
         )
     if name == "desktop_mouse":
         return (
-            f"Mouse {parsed.get('action')} at ({parsed.get('x', 'current')}, {parsed.get('y', 'current')})",
+            (
+                f"Mouse {parsed.get('action')} at "
+                f"({parsed.get('x', 'current')}, {parsed.get('y', 'current')})"
+            ),
             "Perform one generic pointer action on the visible desktop",
             "A click can activate whichever control is currently at the approved coordinates.",
         )
     if name == "desktop_keyboard":
         if parsed.get("action") == "type":
             text = str(parsed.get("text", ""))
-            action = f"Type {len(text)} characters into the currently focused desktop control: {text[:300]!r}"
+            action = (
+                f"Type {len(text)} characters into the currently focused desktop control: "
+                f"{text[:300]!r}"
+            )
         else:
             action = f"Press desktop key combination: {parsed.get('keys', [])}"
         return (
