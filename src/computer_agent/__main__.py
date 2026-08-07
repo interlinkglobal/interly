@@ -10,6 +10,7 @@ from computer_agent import __version__
 from computer_agent.browser import BROWSER
 from computer_agent.chat import run_chat
 from computer_agent.config import load_settings, save_api_key
+from computer_agent.documents import document_support_status
 from computer_agent.emergency import EmergencyStop
 from computer_agent.models import GroqModel
 from computer_agent.updater import update_interly
@@ -49,6 +50,9 @@ def main() -> None:
     if "--version" in sys.argv[1:]:
         print(f"Interly {__version__}")
         return
+    if "--check-document-support" in sys.argv[1:]:
+        print(document_support_status())
+        return
 
     settings = load_settings()
     if not settings.groq_api_key:
@@ -69,6 +73,7 @@ def main() -> None:
             return False
         model.update_api_key(api_key)
         return True
+
     emergency_stop = EmergencyStop()
     if emergency_stop.start():
         print("Emergency stop: press Esc to cancel the current request.")
