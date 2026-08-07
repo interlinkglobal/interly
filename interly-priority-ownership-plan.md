@@ -2,49 +2,48 @@
 
 > Working reference for the remaining ❌ Interly roadmap items.
 >
-> This document defines **implementation priority**, **ownership**, and the **meeting point** between parallel workstreams.  
-> Completed ✅ roadmap items are intentionally excluded.
+> This document defines **implementation priority**, **ownership**, and the **meeting point** between parallel workstreams.
 
 ## Working Agreement
 
-- **ChatGPT** owns **Priority 1 — Execution Governance** and **Priority 2 — Desktop Perception & Interaction**.
-- **User** owns **Priority 4 — Persistent Memory & Reusable Work** and **Priority 5 — Developer Agent**.
-- We **meet at Priority 3 — Documents & Safe Filesystem Completion** after the parallel work above is complete enough to converge.
-- **Priorities 6–8 remain deferred** until after the Priority 3 convergence point unless we explicitly agree otherwise.
-- Status in this document should be updated as work progresses so it remains the reference for **who is doing what**.
+- **ChatGPT** owned **Priority 1 — Execution Governance** and **Priority 2 — Desktop Perception & Interaction**. That implementation pass is complete and verified by the Windows test/lint stage.
+- **User** owned **Priority 4 — Persistent Memory & Reusable Work** and **Priority 5 — Developer Agent**. The completed portions are recorded below; remaining unchecked items stay open rather than being silently marked complete.
+- We have reached **Priority 3 — Documents & Safe Filesystem Completion**, the joint convergence point.
+- **Priorities 6–8 remain deferred** until after Priority 3 unless we explicitly agree otherwise.
+- `ROADMAP.md` remains the strict ✅/❌ source of truth for feature completion.
 
 ---
 
 # Priority 1 — Execution Governance
 
 **Owner: ChatGPT**  
-**Status: Assigned**
+**Status: Complete ✅**
 
 Goal: establish the control architecture Interly should use before receiving substantially broader autonomy.
 
-1. **#97 — Dry-run mode + configurable permission policies**
-2. **#85 — Multi-step plan presentation**
-3. **#86 — Grouped/scoped plan approvals**
-4. **#96 — Persistent privacy-aware action audit logs**
+1. [x] **#97 — Dry-run mode + configurable permission policies**
+2. [x] **#85 — Multi-step plan presentation**
+3. [x] **#86 — Grouped/scoped plan approvals**
+4. [x] **#96 — Persistent privacy-aware action audit logs**
 
-### Intended flow
+### Implemented flow
 
 `request → plan → dry run / policy evaluation → scoped approval → execution → audit record`
 
 ### Completion outcome
 
-Interly can present a larger operation as a governed plan rather than a chain of unrelated approval prompts, with policy evaluation and a durable record of what was proposed and executed.
+Interly can present larger operations as governed plans instead of chains of unrelated prompts. Policies can prompt, allow, or deny by tool; dry-run prevents approved actions from executing; plan approval lasts only for the current request; destructive Windows actions still require individual confirmation; and proposed/executed actions are recorded in a privacy-aware JSONL audit log.
 
 ---
 
 # Priority 2 — Desktop Perception & Interaction
 
 **Owner: ChatGPT**  
-**Status: Assigned**
+**Status: Complete ✅**
 
 Goal: turn Interly from a Windows command/tool agent into a desktop-capable computer agent.
 
-1. **#71 — Desktop window manipulation**
+1. [x] **#71 — Desktop window manipulation**
    - list
    - focus
    - minimise
@@ -52,39 +51,39 @@ Goal: turn Interly from a Windows command/tool agent into a desktop-capable comp
    - move
    - resize
    - restore
-2. **#73 — Full-screen and selected-window screenshots**
-3. **#74 — OCR**
-4. **#75 — Visible desktop-control identification**
-5. **#76 — Guarded generic mouse control**
-6. **#77 — Guarded generic keyboard control**
-7. **#72 — Clipboard access with separate read/write approvals**
+2. [x] **#73 — Full-screen and selected-window screenshots**
+3. [x] **#74 — OCR**
+4. [x] **#75 — Visible desktop-control identification**
+5. [x] **#76 — Guarded generic mouse control**
+6. [x] **#77 — Guarded generic keyboard control**
+7. [x] **#72 — Clipboard access with separate read/write approvals**
 
-### Intended flow
+### Implemented flow
 
 `windows → screenshots → understanding → control identification → mouse / keyboard → clipboard`
 
 ### Dependency rule
 
-Generic mouse and keyboard control should not become the primary interaction path before Interly can identify what is on screen and where the intended target is.
+Generic mouse and keyboard control are downstream of desktop inspection. Interly is instructed to use exact window handles, returned control rectangles, or other known coordinates instead of inventing screen positions.
 
 ### Completion outcome
 
-Interly can inspect the visible Windows desktop, understand relevant on-screen content and controls, and interact with them through permission-gated input.
+Interly can inspect the visible Windows desktop, capture it, extract text through bundled OCR, enumerate visible UI Automation controls, and perform permission-gated pointer, keyboard, window, and clipboard actions.
 
 ---
 
 # Priority 3 — Documents & Safe Filesystem Completion
 
 **Owner: Joint / Convergence Point**  
-**Status: Waiting for both parallel workstreams**
+**Status: Active — both streams meet here**
 
-This is where **ChatGPT and the User regroup** after working independently on Priorities 1–2 and 4–5.
+This is the current shared workstream after the parallel implementation passes.
 
 Goal: complete Interly's existing filesystem layer and expand it from text-file access into structured document work.
 
-1. **#67 — Structured PDF, Word, Excel and PowerPoint understanding**
-2. **#66 — File deletion through the Windows Recycle Bin**
-3. **#70 — Malware scanning and quarantine checks for downloads**
+1. [ ] **#67 — Structured PDF, Word, Excel and PowerPoint understanding**
+2. [ ] **#66 — File deletion through the Windows Recycle Bin**
+3. [ ] **#70 — Malware scanning and quarantine checks for downloads**
 
 ### Intended file flow
 
@@ -103,7 +102,7 @@ Interly can work with common structured documents, complete ordinary filesystem 
 # Priority 4 — Persistent Memory & Reusable Work
 
 **Owner: User**  
-**Status: Assigned**
+**Status: User checkpoint complete; one roadmap item remains open**
 
 Goal: move Interly from session-only context toward persistent continuity and reusable work.
 
@@ -114,24 +113,20 @@ Goal: move Interly from session-only context toward persistent continuity and re
 5. [x] **Beta idea — make-memory for simple queued local notes in interly-memory.txt**
 6. [ ] **#88 — Scheduled tasks, reminders and monitors**
 
-### Intended flow
+### Implemented flow so far
 
-`persistent storage → user control → approved facts/preferences → reusable workflows → recurrence`
+`persistent storage → user control → approved facts/preferences → reusable workflows`
 
-### Dependency rule
+### Remaining extension
 
-Memory management and deletion controls should exist alongside persistent memory before expanding into personal facts/preferences.
-
-### Completion outcome
-
-Interly can retain approved context across sessions, let the user inspect and control that retained information, and convert repeated work into reusable or scheduled workflows.
+`→ recurrence`
 
 ---
 
 # Priority 5 — Developer Agent
 
 **Owner: User**  
-**Status: Assigned**
+**Status: User checkpoint complete; two roadmap items remain open**
 
 Goal: turn Interly's existing machine and file capabilities into a coherent software-development workflow.
 
@@ -140,13 +135,13 @@ Goal: turn Interly's existing machine and file capabilities into a coherent soft
 3. [ ] **#91 — Structured log monitoring with cancellation and timeouts**
 4. [ ] **#98 — Token, cost, latency and request-count reporting**
 
-### Intended flow
+### Implemented flow so far
 
-`repository → inspect/change → build/test/run → monitor logs → measure execution`
+`repository → inspect/change → build/test/run`
 
-### Completion outcome
+### Remaining extensions
 
-Interly can work inside a development repository, run and supervise development commands, observe structured logs, and expose the operational cost/performance of agent work.
+`→ monitor logs → measure execution`
 
 ---
 
@@ -155,10 +150,8 @@ Interly can work inside a development repository, run and supervise development 
 **Owner: Deferred / Unassigned**  
 **Status: After Priority 3 convergence**
 
-Goal: harden the distribution path for a machine-level Windows agent.
-
-1. **#99 — Complete GitHub Actions security coverage**
-2. **#100 — Signed Windows releases with a trusted update path**
+1. [ ] **#99 — Complete GitHub Actions security coverage**
+2. [ ] **#100 — Signed Windows releases with a trusted update path**
 
 ### Intended flow
 
@@ -171,12 +164,10 @@ Goal: harden the distribution path for a machine-level Windows agent.
 **Owner: Deferred / Unassigned**  
 **Status: After Priority 3 convergence**
 
-Goal: add useful human-facing and environmental controls once the major architecture is stable.
-
-1. **#78 — Volume and mute control**
-2. **#79 — Brightness control**
-3. **#80 — Speech input**
-4. **#81 — Speech output and optional wake phrase**
+1. [ ] **#78 — Volume and mute control**
+2. [ ] **#79 — Brightness control**
+3. [ ] **#80 — Speech input**
+4. [ ] **#81 — Speech output and optional wake phrase**
 
 ### Intended flow
 
@@ -189,9 +180,9 @@ Volume and brightness remain independent OS controls within the same lower-prior
 # Priority 8 — 1.0 External Security Validation
 
 **Owner: Deferred / External**  
-**Status: Last major gate before stable 1.0**
+**Status: Final gate**
 
-1. **#101 — External security review and threat-model audit**
+1. [ ] **#101 — External security review and threat-model audit**
 
 This comes after the major capability and security architecture stabilises so the external review evaluates the actual 1.0 candidate rather than a moving target.
 
@@ -201,25 +192,25 @@ This comes after the major capability and security architecture stabilises so th
 
 | Priority | Workstream | Owner | Current State |
 |---|---|---|---|
-| 1 | Execution Governance | **ChatGPT** | Assigned |
-| 2 | Desktop Perception & Interaction | **ChatGPT** | Assigned |
-| 3 | Documents & Safe Filesystem Completion | **Joint** | Convergence point |
-| 4 | Persistent Memory & Reusable Work | **User** | Assigned |
-| 5 | Developer Agent | **User** | Assigned |
-| 6 | Release & Supply-Chain Security | Deferred | After convergence |
-| 7 | Human & OS Interface Controls | Deferred | After convergence |
+| 1 | Execution Governance | **ChatGPT** | Complete ✅ |
+| 2 | Desktop Perception & Interaction | **ChatGPT** | Complete ✅ |
+| 3 | Documents & Safe Filesystem Completion | **Joint** | **Active convergence point** |
+| 4 | Persistent Memory & Reusable Work | **User** | Checkpoint complete; #88 open |
+| 5 | Developer Agent | **User** | Checkpoint complete; #91 and #98 open |
+| 6 | Release & Supply-Chain Security | Deferred | After Priority 3 |
+| 7 | Human & OS Interface Controls | Deferred | After Priority 3 |
 | 8 | External Security Validation | External / Deferred | Final gate |
 
 ## Current execution pattern
 
-**ChatGPT:** `Priority 1 → Priority 2`  
-**User:** `Priority 4 → Priority 5`
+Completed parallel passes:
 
-Then:
+**ChatGPT:** `Priority 1 → Priority 2`  
+**User:** `Priority 4 → Priority 5 checkpoint`
+
+Current shared position:
 
 **Both:** `→ Priority 3`
-
-After Priority 3, ownership and order for Priorities 6–8 can be reassigned based on the state of the system.
 
 ---
 
@@ -227,8 +218,8 @@ After Priority 3, ownership and order for Priorities 6–8 can be reassigned bas
 
 When we say:
 
-- **“my work”** in this plan, it refers to the User-owned priorities **4 and 5**.
-- **“your work”** in this plan, it refers to ChatGPT-owned priorities **1 and 2**.
-- **“meet at three”** means both parallel streams converge on **Priority 3 — Documents & Safe Filesystem Completion**.
+- **“my work”** in this plan refers to the User-owned Priority 4/5 implementation pass.
+- **“your work”** refers to the ChatGPT-owned Priority 1/2 implementation pass.
+- **“meet at three”** now means **Priority 3 is the active joint workstream**.
+- Unchecked #88, #91, and #98 remain real roadmap work and have not been reclassified as complete.
 - Priorities **6–8 are not active assignments yet**.
-
