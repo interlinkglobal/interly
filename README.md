@@ -26,16 +26,16 @@ Git, Node.js, or npm on the user's computer.
 
 ### Development and fallback installer
 
-For branch testing, development installations, or recovery when WinGet is unavailable, open
-Command Prompt or PowerShell and run:
+For development installations or recovery when WinGet is unavailable, open Command Prompt or
+PowerShell and run:
 
 ```cmd
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm 'https://raw.githubusercontent.com/interlinkglobal/Interly/agent/next-ten-roadmap/install.ps1' | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm 'https://raw.githubusercontent.com/interlinkglobal/Interly/main/install.ps1' | iex"
 ```
 
 This fallback installer detects suitable Python and Git installations, installs either when necessary,
-installs and configures pipx, installs Interly, verifies the command, and launches it. Node.js is
-not required. It remains separate from the standalone WinGet distribution.
+installs and configures pipx, installs the current `main` branch, verifies the command, and launches
+Interly. Node.js is not required. It remains separate from the standalone WinGet distribution.
 
 On first launch, Interly asks for a [Groq API key](https://console.groq.com/keys). Input is
 hidden, validated before saving, and stored under the current Windows user's application-data
