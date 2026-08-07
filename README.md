@@ -55,6 +55,10 @@ Development installations upgrade through pipx. Restart Interly after a successf
 ## Current capabilities
 
 - Groq-powered terminal conversation with in-session memory
+- Persistent local memory for approved facts and preferences
+- Memory inspection, export, and clear controls from the chat loop
+- Reusable named workflows and workflow listing support
+- Repository inspection and bounded repository command execution
 - Approval before every local action
 - Open applications registered with Windows or explicit executable commands resolved by Windows
 - Discover, close, or forcibly terminate exact processes by PID
@@ -102,6 +106,13 @@ in the terminal. With `Y`, Interly sends Groq only a short completion status. Wi
 explicitly authorizes that one output to be included in the Groq conversation. For a local-only
 app or process lookup, the user must type the exact displayed name and ID or PID before Interly
 can continue.
+
+## Recent user-owned progress
+
+- [x] Persistent memory storage for approved facts and preferences
+- [x] Memory inspect/export/clear controls available through the chat loop
+- [x] Reusable named workflows and workflow listing support
+- [x] Repository inspection and bounded repository command execution for developer workflows
 
 ## Important limitations
 
