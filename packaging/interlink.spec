@@ -7,6 +7,10 @@ rapidocr_data, rapidocr_binaries, rapidocr_hidden = collect_all("rapidocr")
 onnx_data, onnx_binaries, onnx_hidden = collect_all("onnxruntime")
 pillow_data, pillow_binaries, pillow_hidden = collect_all("PIL")
 uia_data, uia_binaries, uia_hidden = collect_all("uiautomation")
+pdf_data, pdf_binaries, pdf_hidden = collect_all("pdfplumber")
+docx_data, docx_binaries, docx_hidden = collect_all("docx")
+excel_data, excel_binaries, excel_hidden = collect_all("openpyxl")
+pptx_data, pptx_binaries, pptx_hidden = collect_all("pptx")
 
 a = Analysis(
     ["entrypoint.py"],
@@ -18,6 +22,10 @@ a = Analysis(
         + onnx_binaries
         + pillow_binaries
         + uia_binaries
+        + pdf_binaries
+        + docx_binaries
+        + excel_binaries
+        + pptx_binaries
     ),
     datas=(
         playwright_data
@@ -26,7 +34,15 @@ a = Analysis(
         + onnx_data
         + pillow_data
         + uia_data
+        + pdf_data
+        + docx_data
+        + excel_data
+        + pptx_data
         + copy_metadata("interly")
+        + copy_metadata("pdfplumber")
+        + copy_metadata("python-docx")
+        + copy_metadata("openpyxl")
+        + copy_metadata("python-pptx")
     ),
     hiddenimports=(
         playwright_hidden
@@ -35,6 +51,10 @@ a = Analysis(
         + onnx_hidden
         + pillow_hidden
         + uia_hidden
+        + pdf_hidden
+        + docx_hidden
+        + excel_hidden
+        + pptx_hidden
     ),
     noarchive=False,
 )
