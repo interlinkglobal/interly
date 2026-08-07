@@ -1,10 +1,10 @@
 # Interly
 
 Interly is an experimental, permission-aware Windows computer agent powered by Groq. It can
-reason about a request, propose a local or web action, show exactly what it wants to do, and
-wait for approval before executing it.
+reason about a request, propose local, desktop, or web actions, show exactly what it wants to do,
+and wait for approval before execution.
 
-Development follows the checked 100-item plan in [ROADMAP.md](ROADMAP.md).
+Development follows the verified 101-item plan in [ROADMAP.md](ROADMAP.md).
 
 ## Install on Windows
 
@@ -59,8 +59,13 @@ Development installations upgrade through pipx. Restart Interly after a successf
 - Memory inspection, export, and clear controls from the chat loop
 - Reusable named workflows and workflow listing support
 - Repository inspection and bounded repository command execution
-- Beta make-memory command for saving simple text snippets to a local interly-memory.txt file
-- Approval before every local action
+- Beta `make-memory` command for saving simple text snippets to a local `interly-memory.txt` file
+- Approval before local actions during normal approval mode
+- Multi-step plan presentation with one-request scoped plan approval
+- Session dry-run mode that previews approved actions without executing them
+- Persistent per-tool permission policies with `prompt`, `allow`, and `deny` modes
+- Persistent privacy-aware JSONL audit records for proposed and executed actions
+- Destructive Windows actions remain individually confirmed even during broader approval modes
 - Open applications registered with Windows or explicit executable commands resolved by Windows
 - Discover, close, or forcibly terminate exact processes by PID
 - Read-only system commands for processes, system information, networking, users, routes,
@@ -80,8 +85,43 @@ Development installations upgrade through pipx. Restart Interly after a successf
   moving, renaming, and folder creation
 - Approved direct-file downloads with public-URL validation, a 1 GB limit, overwrite protection,
   temporary-file cleanup, final content type, byte count, and SHA-256 reporting
+- Visible top-level Windows window enumeration with exact handles, PIDs, titles, and rectangles
+- Guarded window focus, minimise, maximise, restore, move, and resize actions
+- Full virtual-desktop and selected-window PNG screenshots
+- Bundled OCR for approved local images and desktop captures, including text bounding boxes
+- Read-only foreground UI Automation control inspection without automatic activation
+- Guarded generic mouse movement, clicking, double-clicking, and bounded wheel scrolling
+- Guarded generic keyboard typing and bounded key combinations
+- Separate Windows clipboard read and write operations
 - Blocking of private/local web addresses, oversized pages, unsupported downloads, invented
-  application IDs, and critical Windows process termination
+  application IDs, critical Windows process termination, and out-of-bounds desktop input
+
+## Governance commands
+
+At any Interly `You:` prompt:
+
+```text
+dry-run
+dry-run on
+dry-run off
+policy
+policy set <default|tool_name> <prompt|allow|deny>
+policy reset
+audit
+audit <1-100>
+```
+
+`dry-run on` keeps the normal permission flow but replaces execution with a tool preview. `policy`
+shows the persistent permission configuration. Tool policies can prompt normally, allow without a
+repeated prompt, or deny execution. A displayed multi-step plan can also grant scoped approval for
+that one request.
+
+`close_or_kill_process`, `logout_windows`, and `windows_power_action` remain individually confirmed
+even when a plan, `set-free`, or an allow-policy would otherwise remove the prompt.
+
+The audit log is stored in the current user's Interly configuration directory. Sensitive typed text,
+clipboard-write payloads, file content/edit payloads, and URL credentials/query fragments are not
+written verbatim into audit records.
 
 ## Approval controls
 
@@ -99,14 +139,26 @@ Sensitive local-read prompts use a different meaning:
 
 Sensitive `A` approval applies to one command only; it is never remembered for the session.
 
-Application launches, process termination, and logout always require individual approval.
+Raw process lists, application matches, IP and Wi-Fi configuration, users, routes, performance
+metrics, installed-application reports, desktop window listings, OCR results, control inspection,
+and clipboard reads default to local-only output. With `Y`, Interly sends Groq only a short
+completion status. With `A`, the user explicitly authorizes that one output to be included in the
+Groq conversation.
 
-System reports default to local-only. Raw process lists, application matches, IP and Wi-Fi
-configuration, users, routes, performance metrics, and installed-application reports are printed
-in the terminal. With `Y`, Interly sends Groq only a short completion status. With `A`, the user
-explicitly authorizes that one output to be included in the Groq conversation. For a local-only
-app or process lookup, the user must type the exact displayed name and ID or PID before Interly
-can continue.
+`set-free 1` through `set-free 30` temporarily removes repeated prompts for ordinary actions.
+`set-free 0` disables the window immediately. Emergency stop remains active, sensitive local output
+still stays local unless explicitly shared with `A`, and destructive Windows actions still require
+individual confirmation.
+
+## Desktop interaction model
+
+Interly is instructed to inspect before acting. For window operations it first resolves exact native
+window handles and titles. For generic desktop input it should prefer UI Automation rectangles,
+OCR coordinates, or other explicitly returned screen positions rather than inventing coordinates.
+
+Desktop screenshots and OCR may expose information visible on screen. Window listings, OCR output,
+visible control details, and clipboard reads therefore use the same local-only privacy model as
+other sensitive machine inspection tools.
 
 ## Recent user-owned progress
 
@@ -114,28 +166,32 @@ can continue.
 - [x] Memory inspect/export/clear controls available through the chat loop
 - [x] Reusable named workflows and workflow listing support
 - [x] Repository inspection and bounded repository command execution for developer workflows
-- Beta make-memory command idea for saving simple local notes to interly-memory.txt
+- [x] Beta `make-memory` command idea for saving simple local notes to `interly-memory.txt`
+- [ ] Scheduled tasks, reminders, and monitors
+- [ ] Structured log monitoring with cancellation and timeouts
+- [ ] Token, cost, latency, and request-count reporting
 
 ## Important limitations
 
-Interly is alpha software. Model responses can be wrong, and read-only system output may still
-contain private information. Review every proposed action. Forced process termination can lose
-unsaved work. Web searches and selected page text are sent to external services and Groq.
+Interly is alpha software. Model responses can be wrong, and read-only system or desktop output may
+contain private information. Review proposed actions. Forced process termination can lose unsaved
+work. Generic mouse and keyboard actions affect the currently visible/focused desktop state. Web
+searches and selected page text are sent to external services and Groq.
 
 Personal-browser access, file deletion, webpage video extraction, streaming-platform downloads,
-document parsing, uploads, logins, purchases, and messaging are not implemented. Direct downloads
-currently require a public URL that returns the file itself. The emergency stop prevents additional
-actions, but an operating-system call that has already completed cannot be reversed.
+structured PDF/Word/Excel/PowerPoint parsing, uploads, logins, purchases, messaging, volume control,
+brightness control, and speech input/output are not implemented. Direct downloads currently require
+a public URL that returns the file itself. The emergency stop prevents additional actions, but an
+operating-system call that has already completed cannot be reversed.
 
 ## Development
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-$env:PYTHONPATH = "src"
+python -m pip install ".[dev,distribution]"
 pytest -p no:cacheprovider
-ruff check src tests
+ruff check src tests packaging
 ```
 
 ## License

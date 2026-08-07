@@ -6,7 +6,7 @@ Status rule:
 - ✅ = the complete item is implemented and verified.
 - ❌ = the item is not fully complete. Partial implementation still counts as ❌.
 
-Current verified status: **71/101 complete**.
+Current verified status: **88/101 complete**.
 
 ## 1. Core agent foundation
 
@@ -101,13 +101,13 @@ Current verified status: **71/101 complete**.
 
 ## 8. Desktop interaction and media
 
-71. ❌ Add desktop window manipulation: list, focus, minimise, maximise, move, resize, and restore windows.
-72. ❌ Add clipboard access with separately approved reads and writes.
-73. ❌ Add full-screen and desktop screenshots, including selected-window capture.
-74. ❌ Add OCR for extracting visible text from screenshots and desktop captures.
-75. ❌ Identify visible desktop controls without automatically activating them.
-76. ❌ Add guarded generic mouse control.
-77. ❌ Add guarded generic keyboard control.
+71. ✅ Add desktop window manipulation: list, focus, minimise, maximise, move, resize, and restore windows.
+72. ✅ Add clipboard access with separately approved reads and writes.
+73. ✅ Add full-screen and desktop screenshots, including selected-window capture.
+74. ✅ Add OCR for extracting visible text from screenshots and desktop captures.
+75. ✅ Identify visible desktop controls without automatically activating them.
+76. ✅ Add guarded generic mouse control.
+77. ✅ Add guarded generic keyboard control.
 78. ❌ Add system volume and mute control.
 79. ❌ Add display brightness control where supported.
 80. ❌ Add speech input, including push-to-talk.
@@ -115,15 +115,15 @@ Current verified status: **71/101 complete**.
 
 ## 9. Workflows, memory, and developer tools
 
-82. ❌ Add persistent conversation memory with explicit retention controls.
-83. ❌ Add personal facts and preferences memory with explicit user approval.
-84. ❌ Add memory management: inspect, export, and delete retained memory.
-85. ❌ Add multi-step plan presentation before beginning complex tasks.
-86. ❌ Add grouped and scoped approvals for a displayed plan.
-87. ❌ Add reusable workflows that can be saved and rerun by name.
+82. ✅ Add persistent conversation memory with explicit retention controls.
+83. ✅ Add personal facts and preferences memory with explicit user approval.
+84. ✅ Add memory management: inspect, export, and delete retained memory.
+85. ✅ Add multi-step plan presentation before beginning complex tasks.
+86. ✅ Add grouped and scoped approvals for a displayed plan.
+87. ✅ Add reusable workflows that can be saved and rerun by name.
 88. ❌ Add scheduled tasks, reminders, and monitors.
-89. ❌ Add Git repository operations, including inspection and status tools.
-90. ❌ Run approved development tests, linters, builds, and development servers as agent workflows.
+89. ✅ Add Git repository operations, including inspection and status tools.
+90. ✅ Run approved development tests, linters, builds, and development servers as agent workflows.
 91. ❌ Add structured log monitoring with cancellation and timeouts.
 
 ## 10. Quality, publishing, and long-term reliability
@@ -132,8 +132,8 @@ Current verified status: **71/101 complete**.
 93. ✅ Add Ruff code-quality checks.
 94. ✅ Publish the source in the public `interlinkglobal/interly` GitHub repository.
 95. ✅ Add installation, capability, permission, limitation, and licence documentation.
-96. ❌ Add persistent, privacy-aware action audit logs for every proposed and executed action.
-97. ❌ Add dry-run mode and configurable permission policies.
+96. ✅ Add persistent, privacy-aware action audit logs for every proposed and executed action.
+97. ✅ Add dry-run mode and configurable permission policies.
 98. ❌ Add API token usage, latency, request-count, and estimated-cost reporting.
 99. ❌ Complete GitHub Actions coverage for tests, linting, packaging, and dedicated security checks. Tests, linting, and packaging exist; dedicated security checks do not.
 100. ❌ Publish signed versioned releases with a trusted update path. Versioned releases and SHA-256-verified updating exist; Windows release artifacts are not yet code-signed.

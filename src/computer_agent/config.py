@@ -35,6 +35,21 @@ def memory_file() -> Path:
     return config_file().parent / "memory.json"
 
 
+def permission_policy_file() -> Path:
+    """Return the persistent permission-policy path."""
+    return config_file().parent / "permissions.json"
+
+
+def audit_log_file() -> Path:
+    """Return the privacy-aware action-audit log path."""
+    return config_file().parent / "audit.jsonl"
+
+
+def desktop_capture_dir() -> Path:
+    """Return the default directory for Interly desktop captures."""
+    return config_file().parent / "captures"
+
+
 def save_api_key(api_key: str) -> Path:
     """Store the Groq key in the current user's private Interly configuration directory."""
     path = config_file()
