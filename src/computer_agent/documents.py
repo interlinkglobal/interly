@@ -116,8 +116,6 @@ def read_structured_document(path: str) -> str:
             result = _read_powerpoint(target, budget)
     except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile) as error:
         return f"Structured document read failed safely: {error}"
-    except Exception as error:  # backend exceptions vary by file format and version
-        return f"Structured document read failed safely: {type(error).__name__}: {error}"
 
     result["path"] = str(target.resolve())
     result["size_bytes"] = size
@@ -196,10 +194,7 @@ def _read_pdf(path: Path, budget: OutputBudget) -> dict[str, Any]:
 
 
 def _pdf_headings(page: Any, budget: OutputBudget) -> list[dict[str, Any]]:
-    try:
-        words = page.extract_words(extra_attrs=["size"], use_text_flow=True) or []
-    except Exception:
-        return []
+    words = page.extract_words(extra_attrs=["size"], use_text_flow=True) or []
     sizes = [float(word.get("size", 0) or 0) for word in words if word.get("size")]
     if not sizes:
         return []
@@ -433,11 +428,10 @@ def _read_powerpoint(path: Path, budget: OutputBudget) -> dict[str, Any]:
             if paragraphs:
                 blocks.append({"kind": "text", "paragraphs": paragraphs})
         notes = ""
-        try:
-            if slide.has_notes_slide:
-                notes = budget.take(slide.notes_slide.notes_text_frame.text.strip(), 8_000)
-        except Exception:
-            notes = ""
+        if slide.has_notes_slide:
+            notes_frame = getattr(slide.notes_slide, "notes_text_frame", None)
+            if notes_frame is not None:
+                notes = budget.take((notes_frame.text or "").strip(), 8_000)
         slides.append(
             {
                 "kind": "slide",
