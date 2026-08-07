@@ -36,6 +36,17 @@ def test_memory_store_rejects_unapproved_entries(tmp_path: Path) -> None:
     assert store.list_entries() == []
 
 
+def test_memory_store_exports_and_clears_entries(tmp_path: Path) -> None:
+    store = MemoryStore(tmp_path / "memory.json")
+    store.add_entry("name", "Ada", approved=True)
+
+    exported = store.export_entries()
+    assert exported[0]["key"] == "name"
+
+    assert store.clear_entries() == 1
+    assert store.list_entries() == []
+
+
 def test_memory_file_uses_user_config_directory(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("INTERLY_CONFIG_DIR", str(tmp_path))
 

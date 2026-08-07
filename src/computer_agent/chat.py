@@ -8,6 +8,7 @@ from playwright.sync_api import Error as PlaywrightError
 
 from computer_agent.browser import BROWSER
 from computer_agent.emergency import EmergencyStop
+from computer_agent.dev_workflows import WorkflowRegistry
 from computer_agent.memory import MemoryStore
 from computer_agent.models import AuthenticationModelError, ChatModel, ModelError
 from computer_agent.tools import LocalOnlyResult, describe_tool, execute_tool
@@ -57,6 +58,7 @@ def run_chat(
     session_approvals: set[str] = set()
     free_until: float | None = None
     memory_store = MemoryStore()
+    workflow_registry = WorkflowRegistry()
     write_output("Interlink is ready. Type 'exit' to stop.")
 
     while True:
@@ -118,6 +120,37 @@ def run_chat(
                     write_output(f"- {entry['key']}: {entry['value']}")
             else:
                 write_output("No memory entries stored.")
+            continue
+
+        if user_text.casefold().startswith("memory add "):
+            parts = user_text.split(maxsplit=3)
+            if len(parts) == 4:
+                _, _, key, value = parts
+                memory_store.add_entry(key, value, approved=True)
+                write_output("Stored memory entry.")
+            else:
+                write_output("Usage: memory add <key> <value>")
+            continue
+
+        if user_text.casefold() == "memory export":
+            write_output("Exported memory entries:")
+            for entry in memory_store.export_entries():
+                write_output(f"- {entry['key']}: {entry['value']}")
+            continue
+
+        if user_text.casefold() == "memory clear":
+            cleared = memory_store.clear_entries()
+            write_output(f"Cleared {cleared} memory entries.")
+            continue
+
+        if user_text.casefold() == "workflows":
+            workflows = workflow_registry.list_workflows()
+            if workflows:
+                write_output("Saved workflows:")
+                for workflow in workflows:
+                    write_output(f"- {workflow['name']}")
+            else:
+                write_output("No saved workflows.")
             continue
 
         if not user_text:

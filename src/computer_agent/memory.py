@@ -52,6 +52,16 @@ class MemoryStore:
     def list_entries(self) -> list[dict[str, Any]]:
         return self._read()
 
+    def export_entries(self) -> list[dict[str, Any]]:
+        return self._read()
+
+    def clear_entries(self) -> int:
+        entries = self._read()
+        if not entries:
+            return 0
+        self._write([])
+        return len(entries)
+
     def delete_entry(self, key: str) -> bool:
         entries = self._read()
         remaining = [entry for entry in entries if entry.get("key") != key]

@@ -73,6 +73,25 @@ def test_memory_command_lists_stored_entries(tmp_path, monkeypatch) -> None:
     assert "- name: Ada" in output
 
 
+def test_memory_add_command_stores_entry(tmp_path, monkeypatch) -> None:
+    from computer_agent.memory import MemoryStore
+
+    monkeypatch.setenv("INTERLY_CONFIG_DIR", str(tmp_path))
+
+    output: list[str] = []
+    answers = iter(["memory add name Ada", "y", "exit"])
+
+    run_chat(
+        model=OfflineModel(),
+        read_input=lambda _prompt: next(answers),
+        write_output=output.append,
+    )
+
+    store = MemoryStore(tmp_path / "memory.json")
+    assert store.list_entries()[0]["key"] == "name"
+    assert "Stored memory entry." in output
+
+
 def test_groq_model_returns_text_from_client() -> None:
     response = SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(content="Hello from Groq"))]
