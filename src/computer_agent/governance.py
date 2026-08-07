@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from computer_agent.config import audit_log_file, permission_policy_file
 
@@ -20,6 +21,13 @@ SENSITIVE_ARGUMENT_KEYS = {
     "text",
     "token",
     "value",
+}
+AUDIT_REDACT_ACTION_TOOLS = {
+    "browser_type_text",
+    "clipboard_write",
+    "create_text_file",
+    "desktop_keyboard",
+    "edit_text_file",
 }
 
 
@@ -129,11 +137,16 @@ class ActionAuditLog:
         request_id: str = "",
         plan_title: str = "",
     ) -> None:
+        safe_action = (
+            f"{tool} (sensitive action details redacted)"
+            if tool in AUDIT_REDACT_ACTION_TOOLS
+            else action[:1000]
+        )
         entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "request_id": request_id,
             "tool": tool,
-            "action": action[:1000],
+            "action": safe_action,
             "arguments": redact_arguments(arguments),
             "decision": decision,
             "outcome": outcome,
@@ -211,17 +224,36 @@ def redact_arguments(arguments: str) -> dict[str, Any] | str:
 
 
 def _redact_value(value: Any, key: str = "") -> Any:
-    if key.casefold() in SENSITIVE_ARGUMENT_KEYS:
+    lowered_key = key.casefold()
+    if lowered_key in SENSITIVE_ARGUMENT_KEYS:
         if isinstance(value, str):
             return f"<redacted:{len(value)} chars>"
         return "<redacted>"
+    if lowered_key == "url" and isinstance(value, str):
+        return _safe_url(value)
     if isinstance(value, dict):
-        return {str(item_key): _redact_value(item_value, str(item_key)) for item_key, item_value in value.items()}
+        return {
+            str(item_key): _redact_value(item_value, str(item_key))
+            for item_key, item_value in value.items()
+        }
     if isinstance(value, list):
         return [_redact_value(item) for item in value[:50]]
     if isinstance(value, str) and len(value) > 1000:
         return value[:1000] + "<truncated>"
     return value
+
+
+def _safe_url(value: str) -> str:
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return "<invalid-url>"
+    if not parsed.scheme or not parsed.hostname:
+        return "<invalid-url>"
+    hostname = parsed.hostname
+    if parsed.port:
+        hostname = f"{hostname}:{parsed.port}"
+    return urlunsplit((parsed.scheme, hostname, parsed.path, "", ""))
 
 
 def _normalise_argument_text(arguments: str) -> str:
