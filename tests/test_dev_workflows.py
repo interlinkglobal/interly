@@ -1,4 +1,3 @@
-import subprocess
 from pathlib import Path
 
 from computer_agent.dev_workflows import RepositoryWorkflow
