@@ -51,8 +51,9 @@ InstallModes:
   - silentWithProgress
 UpgradeBehavior: install
 Commands:
+  - interly
   - interlink
-ReleaseDate: 2026-08-04
+ReleaseDate: 2026-08-07
 Installers:
   - Architecture: x64
     InstallerUrl: {installer_url}

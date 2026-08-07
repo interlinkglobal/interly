@@ -15,7 +15,7 @@ from computer_agent import __version__
 
 PACKAGE_NAME = "interly"
 WINGET_PACKAGE_ID = "InterlinkGlobal.Interly"
-UPDATE_BRANCH = "agent/next-ten-roadmap"
+UPDATE_BRANCH = "main"
 UPDATE_REF_URL = (
     "https://api.github.com/repos/interlinkglobal/Interly/git/ref/heads/"
     f"{UPDATE_BRANCH}"
@@ -42,7 +42,7 @@ def installed_commit() -> str | None:
 
 
 def repository_commit() -> str:
-    """Return the current commit at Interly's development update branch."""
+    """Return the current commit at Interly's update branch."""
     response = httpx.get(
         UPDATE_REF_URL,
         headers={"Accept": "application/vnd.github+json", "User-Agent": "Interly updater"},
@@ -91,7 +91,7 @@ def update_interly() -> str:
     previous = current[:8] if current else "unknown"
     return (
         f"Interly updated from {previous} to {latest[:8]}.\n"
-        "Type exit, then run interlink again to use the new version."
+        "Type exit, then run interly again to use the new version."
     )
 
 

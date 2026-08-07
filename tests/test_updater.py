@@ -4,12 +4,17 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from computer_agent.updater import (
+    UPDATE_BRANCH,
     digest_file,
     installed_commit,
     latest_release_installer,
     update_interly,
     update_standalone,
 )
+
+
+def test_pipx_update_branch_is_main() -> None:
+    assert UPDATE_BRANCH == "main"
 
 
 @patch("computer_agent.updater.distribution")
@@ -45,6 +50,7 @@ def test_new_commit_upgrades_existing_pipx_installation(
     result = update_interly()
 
     assert "updated from" in result
+    assert "run interly again" in result
     run.assert_called_once_with(
         ["C:/Python/Scripts/pipx.exe", "upgrade", "interly"],
         capture_output=True,
@@ -96,8 +102,8 @@ def test_standalone_falls_back_to_verified_release_when_winget_cannot_find_packa
 ) -> None:
     run.return_value = SimpleNamespace(returncode=1, stdout="", stderr="No package found")
     release.return_value = (
-        "0.5.2",
-        "https://github.com/interlinkglobal/Interly/releases/download/v0.5.2/InterlySetup-x64.exe",
+        "0.6.1",
+        "https://github.com/interlinkglobal/Interly/releases/download/v0.6.1/InterlySetup-x64.exe",
         "ab" * 32,
     )
     download.return_value = "C:/Temp/InterlySetup-update-x64.exe"
@@ -105,6 +111,7 @@ def test_standalone_falls_back_to_verified_release_when_winget_cannot_find_packa
     result = update_standalone()
 
     assert "downloaded, verified" in result
+    assert "run interly again" in result
     download.assert_called_once()
     popen.assert_called_once_with(
         [
@@ -120,13 +127,13 @@ def test_standalone_falls_back_to_verified_release_when_winget_cannot_find_packa
 @patch("computer_agent.updater.httpx.get")
 def test_latest_release_requires_official_installer_and_sha256(get: object) -> None:
     get.return_value.json.return_value = {
-        "tag_name": "v0.5.1",
+        "tag_name": "v0.6.0",
         "assets": [
             {
                 "name": "InterlySetup-x64.exe",
                 "browser_download_url": (
                     "https://github.com/interlinkglobal/Interly/releases/download/"
-                    "v0.5.1/InterlySetup-x64.exe"
+                    "v0.6.0/InterlySetup-x64.exe"
                 ),
                 "digest": f"sha256:{'ab' * 32}",
             }
@@ -134,8 +141,8 @@ def test_latest_release_requires_official_installer_and_sha256(get: object) -> N
     }
 
     assert latest_release_installer() == (
-        "0.5.1",
-        "https://github.com/interlinkglobal/Interly/releases/download/v0.5.1/InterlySetup-x64.exe",
+        "0.6.0",
+        "https://github.com/interlinkglobal/Interly/releases/download/v0.6.0/InterlySetup-x64.exe",
         "ab" * 32,
     )
 
