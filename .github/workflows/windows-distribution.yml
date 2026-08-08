@@ -82,11 +82,7 @@ jobs:
             throw "Standalone executable smoke test failed: $version"
           }
 
-          $entrypointSupportsDocumentCheck = Select-String \
-            -Path .\src\computer_agent\__main__.py \
-            -Pattern 'check-document-support' \
-            -Quiet
-
+          $entrypointSupportsDocumentCheck = Select-String -Path .\src\computer_agent\__main__.py -Pattern 'check-document-support' -Quiet
           if ($entrypointSupportsDocumentCheck) {
             $documentSupport = & .\dist\interly.exe --check-document-support
             if ($LASTEXITCODE -ne 0 -or $documentSupport -ne "Document support: PDF DOCX XLSX XLSM PPTX") {
