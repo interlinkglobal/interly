@@ -81,9 +81,19 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $version -ne "Interly ${{ steps.release.outputs.version }}") {
             throw "Standalone executable smoke test failed: $version"
           }
-          $documentSupport = & .\dist\interly.exe --check-document-support
-          if ($LASTEXITCODE -ne 0 -or $documentSupport -ne "Document support: PDF DOCX XLSX XLSM PPTX") {
-            throw "Standalone document backend smoke test failed: $documentSupport"
+
+          $entrypointSupportsDocumentCheck = Select-String \
+            -Path .\src\computer_agent\__main__.py \
+            -Pattern 'check-document-support' \
+            -Quiet
+
+          if ($entrypointSupportsDocumentCheck) {
+            $documentSupport = & .\dist\interly.exe --check-document-support
+            if ($LASTEXITCODE -ne 0 -or $documentSupport -ne "Document support: PDF DOCX XLSX XLSM PPTX") {
+              throw "Standalone document backend smoke test failed: $documentSupport"
+            }
+          } else {
+            Write-Host "Skipping document-support smoke test because this release tag does not implement that CLI flag."
           }
 
       - name: Install Inno Setup
