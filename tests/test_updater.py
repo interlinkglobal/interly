@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from computer_agent.updater import (
+    MAX_INSTALLER_BYTES,
     UPDATE_BRANCH,
     digest_file,
     installed_commit,
@@ -15,6 +16,10 @@ from computer_agent.updater import (
 
 def test_pipx_update_branch_is_main() -> None:
     assert UPDATE_BRANCH == "main"
+
+
+def test_installer_size_limit_allows_current_windows_bundle() -> None:
+    assert MAX_INSTALLER_BYTES >= 400 * 1024 * 1024
 
 
 @patch("computer_agent.updater.distribution")
@@ -103,7 +108,7 @@ def test_standalone_falls_back_to_verified_release_when_winget_cannot_find_packa
     run.return_value = SimpleNamespace(returncode=1, stdout="", stderr="No package found")
     release.return_value = (
         "0.6.1",
-        "https://github.com/interlinkglobal/Interly/releases/download/v0.6.1/InterlySetup-x64.exe",
+        "https://github.com/interlinkglobal/interly/releases/download/v0.6.1/InterlySetup-x64.exe",
         "ab" * 32,
     )
     download.return_value = "C:/Temp/InterlySetup-update-x64.exe"
@@ -127,13 +132,13 @@ def test_standalone_falls_back_to_verified_release_when_winget_cannot_find_packa
 @patch("computer_agent.updater.httpx.get")
 def test_latest_release_requires_official_installer_and_sha256(get: object) -> None:
     get.return_value.json.return_value = {
-        "tag_name": "v0.6.0",
+        "tag_name": "0.6.0",
         "assets": [
             {
                 "name": "InterlySetup-x64.exe",
                 "browser_download_url": (
-                    "https://github.com/interlinkglobal/Interly/releases/download/"
-                    "v0.6.0/InterlySetup-x64.exe"
+                    "https://github.com/interlinkglobal/interly/releases/download/"
+                    "0.6.0/InterlySetup-x64.exe"
                 ),
                 "digest": f"sha256:{'ab' * 32}",
             }
@@ -142,7 +147,7 @@ def test_latest_release_requires_official_installer_and_sha256(get: object) -> N
 
     assert latest_release_installer() == (
         "0.6.0",
-        "https://github.com/interlinkglobal/Interly/releases/download/v0.6.0/InterlySetup-x64.exe",
+        "https://github.com/interlinkglobal/interly/releases/download/0.6.0/InterlySetup-x64.exe",
         "ab" * 32,
     )
 

@@ -22,7 +22,7 @@ UPDATE_REF_URL = (
 )
 LATEST_RELEASE_URL = "https://api.github.com/repos/interlinkglobal/Interly/releases/latest"
 INSTALLER_NAME = "InterlySetup-x64.exe"
-MAX_INSTALLER_BYTES = 200 * 1024 * 1024
+MAX_INSTALLER_BYTES = 512 * 1024 * 1024
 
 
 def installed_commit() -> str | None:
@@ -163,10 +163,10 @@ def latest_release_installer() -> tuple[str, str, str]:
         raise RuntimeError("The latest release has no Windows installer.")
     url = str(asset.get("browser_download_url", ""))
     digest = str(asset.get("digest", ""))
-    expected_prefix = "https://github.com/interlinkglobal/Interly/releases/download/"
-    if not url.startswith(expected_prefix) or not digest.startswith("sha256:"):
+    expected_prefix = "https://github.com/interlinkglobal/interly/releases/download/"
+    if not url.casefold().startswith(expected_prefix) or not digest.casefold().startswith("sha256:"):
         raise RuntimeError("The release installer could not be verified.")
-    return version, url, digest.removeprefix("sha256:").casefold()
+    return version, url, digest.split(":", 1)[1].casefold()
 
 
 def download_release_installer(url: str, expected_digest: str) -> Path:
